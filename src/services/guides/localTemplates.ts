@@ -34,6 +34,10 @@ function filterByFuel(items: MaintenanceGuideItem[], fuel?: FuelType): Maintenan
   });
 }
 
+function normKey(s?: string): string {
+  return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 export class LocalTemplatesProvider implements MaintenanceGuideProvider {
   async getGuide(input: ProviderInput): Promise<MaintenanceGuide> {
     let normalized = { make: input.make, model: input.model, year: input.year, fuelType: input.fuelType };
@@ -50,7 +54,7 @@ export class LocalTemplatesProvider implements MaintenanceGuideProvider {
       }
     }
 
-    const makeKey = (normalized.make || '').toLowerCase();
+    const makeKey = normKey(normalized.make);
     const base: MaintenanceGuideItem[] = Object.values(generic);
     const overrides = brandOverrides[makeKey];
     const merged = overrides
@@ -74,8 +78,9 @@ export class LocalTemplatesProvider implements MaintenanceGuideProvider {
     });
 
     // Tesla Model Y (2020-2024) specific plan
-    const isTeslaY = (normalized.make || '').toLowerCase() === 'tesla'
-      && (normalized.model || '').toLowerCase() === 'model y'
+    const modelKey = normKey(normalized.model);
+    const isTeslaY = makeKey === 'tesla'
+      && (modelKey.includes('model y'))
       && typeof normalized.year === 'number'
       && normalized.year >= 2020 && normalized.year <= 2024;
     if (isTeslaY) {
