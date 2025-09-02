@@ -16,7 +16,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Permite seleccionar una foto de tu vehículo."
+        "NSPhotoLibraryUsageDescription": "Permite seleccionar una foto de tu vehículo.",
+        "NSUserNotificationsUsageDescription": "CareYourCar usa notificaciones para avisarte de cambios de plan y recordatorios."
       }
     },
     "android": {
@@ -29,6 +30,9 @@
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-notifications"
+    ]
   }
 }
