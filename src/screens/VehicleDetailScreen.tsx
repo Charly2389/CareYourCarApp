@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+﻿import React, { useEffect, useState, useLayoutEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
@@ -25,6 +25,17 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     refresh();
     return unsub;
   }, [navigation, vehicleId]);
+
+  const onDeleteVehicle = () => {
+    const perform = async () => {
+      await repo.deleteVehicle(vehicleId);
+      navigation.navigate('Vehicles');
+    };
+    Alert.alert('Eliminar vehículo', '¿Seguro que deseas eliminar este vehículo y su historial?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: perform },
+    ]);
+  };
 
   if (!vehicle) {
     return (
@@ -65,6 +76,14 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         <Text style={styles.title}>{vehicle.make} {vehicle.model} ({vehicle.year})</Text>
         <Text style={styles.subtitle}>Matrícula: {vehicle.plate ?? '—'}</Text>
         <Text style={styles.subtitle}>Km: {vehicle.mileage.toLocaleString()}</Text>
+      </View>
+      
+      <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
+        <TouchableOpacity onPress={onDeleteVehicle}>
+          <Text style={{ color: '#FCA5A5', fontWeight: '600' }}>
+            Eliminar vehículo
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}

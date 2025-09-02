@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, TextInput, Alert, Platform } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
@@ -141,6 +141,22 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
     }
   };
 
+  // Determine if an item is customized by the user (added or modified vs base template)
+  const isCustom = (it: MaintenanceGuideItem): boolean => {
+    const base = baseItems.find((b) => b.type === it.type);
+    if (!base) return true; // user-added (e.g., otros)
+    const sameKm = (base.intervalKm ?? undefined) === (it.intervalKm ?? undefined);
+    const sameMonths = (base.intervalMonths ?? undefined) === (it.intervalMonths ?? undefined);
+    const sameLabel = (base.label ?? '') === (it.label ?? '');
+    return !(sameKm && sameMonths && sameLabel);
+  };
+
+  const getTickStyle = (it: MaintenanceGuideItem) => {
+    if (isCustom(it)) return { tick: styles.tickYellow, text: styles.tickYellowText, label: 'mantenimiento personalizado' } as const;
+    if (it.reliability === 'verified') return { tick: styles.tickGreen, text: styles.tickGreenText, label: 'verificado por los usuarios' } as const;
+    return { tick: styles.tickOrange, text: styles.tickOrangeText, label: 'mantenimiento por defecto' } as const;
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
@@ -195,16 +211,12 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
           <View style={styles.card}>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={styles.statusCol}>
-                <Text style={[
-                  styles.tick,
-                  item.reliability === 'verified' ? styles.tickGreen : styles.tickOrange,
-                ]}>✓</Text>
-                <Text style={[
-                  styles.tickLabel,
-                  item.reliability === 'verified' ? styles.tickGreenText : styles.tickOrangeText,
-                ]}>
-                  {item.reliability === 'verified' ? 'verificado por los usuarios' : 'por defecto'}
-                </Text>
+                {(() => { const s = getTickStyle(item); return (
+                  <>
+                    <Text style={[styles.tick, s.tick]}>V</Text>
+                    <Text style={[styles.tickLabel, s.text]}>{s.label}</Text>
+                  </>
+                ); })()}
               </View>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -303,7 +315,9 @@ const styles = StyleSheet.create({
   tick: { fontSize: 20, fontWeight: '900' },
   tickGreen: { color: '#10B981' },
   tickOrange: { color: '#F59E0B' },
+  tickYellow: { color: '#FDE047' },
   tickLabel: { marginTop: 4, fontSize: 10, textAlign: 'center' },
   tickGreenText: { color: '#A7F3D0' },
   tickOrangeText: { color: '#FDE68A' },
+  tickYellowText: { color: '#FEF08A' },
 });
