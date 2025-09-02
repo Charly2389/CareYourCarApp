@@ -82,7 +82,7 @@ export async function submitUserEdit(key: ConsensusKey, value: number | undefine
 export async function checkAndApplyConsensus(key: ConsensusKey): Promise<number | undefined> {
   const res = await provider.fetchConsensus(key);
   if (res && res.value !== undefined && res.votes >= 3) {
-    await applyCommunityOverride(key.make, key.model, key.year, key.type, key.field, res.value);
+    await applyCommunityOverride(key.make, key.model, key.year, key.type, key.field, res.value, { verified: true, source: 'community' });
     await notifyAffectedVehicles(key, res.value);
     return res.value;
   }

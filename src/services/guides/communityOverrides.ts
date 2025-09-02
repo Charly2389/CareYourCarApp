@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type CommunityOverride = { intervalKm?: number; intervalMonths?: number };
+export type CommunityOverride = {
+  intervalKm?: number;
+  intervalMonths?: number;
+  verified?: boolean; // true si proviene de consenso >=3 o admin
+  source?: 'community' | 'admin';
+};
 export type CommunityOverrides = Record<string, CommunityOverride>; // key: maintenance type
 
 function key(make: string, model: string | undefined, year: number) {
@@ -26,6 +31,7 @@ export async function applyCommunityOverride(
   type: string,
   field: 'intervalKm' | 'intervalMonths',
   value: number | undefined,
+  meta?: { verified?: boolean; source?: 'community' | 'admin' },
 ): Promise<void> {
   try {
     const k = key(make, model, year);
@@ -36,6 +42,10 @@ export async function applyCommunityOverride(
     } else {
       (item as any)[field] = value;
     }
+    if (meta) {
+      if (typeof meta.verified !== 'undefined') item.verified = meta.verified;
+      if (typeof meta.source !== 'undefined') item.source = meta.source;
+    }
     current[type] = item;
     await AsyncStorage.setItem(k, JSON.stringify(current));
   } catch {
@@ -43,3 +53,13 @@ export async function applyCommunityOverride(
   }
 }
 
+export async function applyAdminOverride(
+  make: string,
+  model: string | undefined,
+  year: number,
+  type: string,
+  field: 'intervalKm' | 'intervalMonths',
+  value: number | undefined,
+): Promise<void> {
+  return applyCommunityOverride(make, model, year, type, field, value, { verified: true, source: 'admin' });
+}

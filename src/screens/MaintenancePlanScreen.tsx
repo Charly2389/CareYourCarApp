@@ -193,54 +193,70 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
         keyExtractor={(_, idx) => String(idx)}
         renderItem={({ item, index }) => (
           <View style={styles.card}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={styles.title}>{labelFor(item)}</Text>
-              {editing ? (
-                <TouchableOpacity onPress={() => removeTask(index)}>
-                  <Text style={{ color: '#FCA5A5', fontWeight: '600' }}>Eliminar</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-            {!editing ? (
-              <>
-                <Text style={styles.meta}>{fmtInterval(item)}</Text>
-                {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                  <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('AddMaintenance', { vehicleId, presetType: item.type, presetLabel: item.label })}>
-                    <Text style={styles.btnText}>Registrar ahora</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <>
-                <Text style={styles.inputLabel}>Nombre</Text>
-                <TextInput
-                  style={styles.input}
-                  value={item.label ?? (item.type.charAt(0).toUpperCase() + item.type.slice(1))}
-                  onChangeText={(t) => updateDraft(index, { label: t })}
-                  placeholder="Ej: Revisión presión neumáticos"
-                  placeholderTextColor="#6B7280"
-                />
-                <View style={styles.segmentWrap}>
-                  {typeOptions.map((t) => (
-                    <TouchableOpacity key={t} style={[styles.segmentItem, item.type === t && styles.segmentItemActive]} onPress={() => updateDraft(index, { type: t })}>
-                      <Text style={[styles.segmentText, item.type === t && styles.segmentTextActive]}>{t}</Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={styles.statusCol}>
+                <Text style={[
+                  styles.tick,
+                  item.reliability === 'verified' ? styles.tickGreen : styles.tickOrange,
+                ]}>✓</Text>
+                <Text style={[
+                  styles.tickLabel,
+                  item.reliability === 'verified' ? styles.tickGreenText : styles.tickOrangeText,
+                ]}>
+                  {item.reliability === 'verified' ? 'verificado por los usuarios' : 'por defecto'}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.title}>{labelFor(item)}</Text>
+                  {editing ? (
+                    <TouchableOpacity onPress={() => removeTask(index)}>
+                      <Text style={{ color: '#FCA5A5', fontWeight: '600' }}>Eliminar</Text>
                     </TouchableOpacity>
-                  ))}
+                  ) : null}
                 </View>
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.inputLabel}>Cada (km)</Text>
-                    <TextInput style={styles.input} keyboardType="numeric" value={item.intervalKm ? String(item.intervalKm) : ''} onChangeText={(t) => updateDraft(index, { intervalKm: t ? Number(t) : undefined })} placeholder="15000" placeholderTextColor="#6B7280" />
-                  </View>
-                  <View style={{ width: 120 }}>
-                    <Text style={styles.inputLabel}>Cada (años)</Text>
-                    <TextInput style={styles.input} keyboardType="numeric" value={item.intervalMonths ? String(Math.round(item.intervalMonths / 12)) : ''} onChangeText={(t) => updateDraft(index, { intervalMonths: t ? Number(t) * 12 : undefined })} placeholder="1" placeholderTextColor="#6B7280" />
-                  </View>
-                </View>
-                {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
-              </>
-            )}
+                {!editing ? (
+                  <>
+                    <Text style={styles.meta}>{fmtInterval(item)}</Text>
+                    {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                      <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('AddMaintenance', { vehicleId, presetType: item.type, presetLabel: item.label })}>
+                        <Text style={styles.btnText}>Registrar ahora</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.inputLabel}>Nombre</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={item.label ?? (item.type.charAt(0).toUpperCase() + item.type.slice(1))}
+                      onChangeText={(t) => updateDraft(index, { label: t })}
+                      placeholder="Ej: Revisión presión neumáticos"
+                      placeholderTextColor="#6B7280"
+                    />
+                    <View style={styles.segmentWrap}>
+                      {typeOptions.map((t) => (
+                        <TouchableOpacity key={t} style={[styles.segmentItem, item.type === t && styles.segmentItemActive]} onPress={() => updateDraft(index, { type: t })}>
+                          <Text style={[styles.segmentText, item.type === t && styles.segmentTextActive]}>{t}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Cada (km)</Text>
+                        <TextInput style={styles.input} keyboardType="numeric" value={item.intervalKm ? String(item.intervalKm) : ''} onChangeText={(t) => updateDraft(index, { intervalKm: t ? Number(t) : undefined })} placeholder="15000" placeholderTextColor="#6B7280" />
+                      </View>
+                      <View style={{ width: 120 }}>
+                        <Text style={styles.inputLabel}>Cada (años)</Text>
+                        <TextInput style={styles.input} keyboardType="numeric" value={item.intervalMonths ? String(Math.round(item.intervalMonths / 12)) : ''} onChangeText={(t) => updateDraft(index, { intervalMonths: t ? Number(t) * 12 : undefined })} placeholder="1" placeholderTextColor="#6B7280" />
+                      </View>
+                    </View>
+                    {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
+                  </>
+                )}
+              </View>
+            </View>
           </View>
         )}
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -283,4 +299,11 @@ const styles = StyleSheet.create({
   segmentItemActive: { backgroundColor: '#1F2937', borderColor: '#2563EB' },
   segmentText: { color: '#9CA3AF', fontSize: 12 },
   segmentTextActive: { color: '#E5E7EB', fontWeight: '600' },
+  statusCol: { width: 120, alignItems: 'center', justifyContent: 'center' },
+  tick: { fontSize: 20, fontWeight: '900' },
+  tickGreen: { color: '#10B981' },
+  tickOrange: { color: '#F59E0B' },
+  tickLabel: { marginTop: 4, fontSize: 10, textAlign: 'center' },
+  tickGreenText: { color: '#A7F3D0' },
+  tickOrangeText: { color: '#FDE68A' },
 });

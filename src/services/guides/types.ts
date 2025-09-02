@@ -7,6 +7,7 @@ export interface MaintenanceGuideItem {
   notes?: string;
   label?: string; // Nombre mostrado; por defecto, capitalizar tipo
   disabled?: boolean; // Si true, oculta este ítem desde la plantilla base
+  reliability?: 'default' | 'verified';
 }
 
 export interface MaintenanceGuide {

@@ -61,15 +61,67 @@ export class LocalTemplatesProvider implements MaintenanceGuideProvider {
 
     // Apply community overrides for this make/model/year, if any
     const community = await getCommunityOverrides(normalized.make, normalized.model, normalized.year);
-    const withCommunity = filtered.map((it) => {
+    let withCommunity = filtered.map((it) => {
       const ov = community[it.type];
-      if (!ov) return it;
-      return {
+      const mergedItem: MaintenanceGuideItem = {
         ...it,
-        intervalKm: ov.intervalKm ?? it.intervalKm,
-        intervalMonths: ov.intervalMonths ?? it.intervalMonths,
-      } as MaintenanceGuideItem;
+        intervalKm: ov?.intervalKm ?? it.intervalKm,
+        intervalMonths: ov?.intervalMonths ?? it.intervalMonths,
+      };
+      // reliability: verified if admin or community verified
+      mergedItem.reliability = ov && (ov.verified || ov.source === 'admin') ? 'verified' : 'default';
+      return mergedItem;
     });
+
+    // Tesla Model Y (2020-2024) specific plan
+    const isTeslaY = (normalized.make || '').toLowerCase() === 'tesla'
+      && (normalized.model || '').toLowerCase() === 'model y'
+      && typeof normalized.year === 'number'
+      && normalized.year >= 2020 && normalized.year <= 2024;
+    if (isTeslaY) {
+      withCommunity = [
+        {
+          type: 'frenos',
+          intervalMonths: 48,
+          notes:
+            'Revisión del estado del líquido de frenos cada 4 años (cambiar si es necesario). *El uso intensivo de los frenos puede requerir comprobaciones y cambios más frecuentes.',
+          reliability: 'verified',
+        },
+        {
+          type: 'filtro_habitaculo',
+          intervalMonths: 24,
+          reliability: 'verified',
+        },
+        {
+          type: 'otros',
+          label: 'Sustitución de los filtros HEPA (2) y los filtros de carbono (2)',
+          intervalMonths: 36,
+          reliability: 'verified',
+        },
+        {
+          type: 'otros',
+          label: 'Sustitución de la escobilla del limpiaparabrisas',
+          intervalMonths: 12,
+          reliability: 'verified',
+        },
+        {
+          type: 'otros',
+          label: 'Limpieza y lubricación de las pinzas de freno',
+          intervalMonths: 12,
+          intervalKm: 20000,
+          notes:
+            'Si circulas en zonas con sal en carretera durante el invierno, realizar cada año o cada 20.000 km (lo que ocurra primero).',
+          reliability: 'verified',
+        },
+        {
+          type: 'neumaticos',
+          intervalKm: 10000,
+          notes:
+            'Rotación cada 10.000 km o si la diferencia de la banda de rodadura es ≥ 1,5 mm (lo que ocurra primero).',
+          reliability: 'verified',
+        },
+      ];
+    }
 
     return { source: 'local', items: withCommunity, normalized };
   }
