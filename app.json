@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "CareYourCar",
+    "slug": "care-your-car",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Permite seleccionar una foto de tu vehículo."
+      }
+    },
+    "android": {},
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
