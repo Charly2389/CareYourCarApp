@@ -11,8 +11,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AddMaintenance'>;
 const types: MaintenanceType[] = ['aceite','neumaticos','filtro_aire','filtro_habitaculo','correa_distribucion','frenos','bateria','itv','otros'];
 
 export default function AddEditMaintenanceScreen({ route, navigation }: Props) {
-  const { vehicleId } = route.params;
-  const [type, setType] = useState<MaintenanceType>('aceite');
+  const { vehicleId, presetType } = route.params;
+  const [type, setType] = useState<MaintenanceType>(presetType ?? 'aceite');
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [mileage, setMileage] = useState('');
   const [cost, setCost] = useState('');

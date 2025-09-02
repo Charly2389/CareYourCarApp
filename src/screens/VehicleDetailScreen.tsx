@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../App';
+import type { RootStackParamList } from '../../App';
 import { MaintenanceRecord, Vehicle } from '../models';
 import { repo } from '../repository/Repo';
 
@@ -78,6 +78,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         ))}
       </View>
       {tab === 'mantenimiento' && (
+        <>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <Text style={{ color: '#E5E7EB', fontWeight: '600' }}>Historial de mantenimientos</Text>
         <TouchableOpacity onPress={() => navigation.navigate('AddMaintenance', { vehicleId })}>
@@ -97,6 +98,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         )}
         contentContainerStyle={{ paddingBottom: 24 }}
       />
+        </>
       )}
       {tab === 'repostajes' && (
         <View style={{ paddingTop: 8 }}>

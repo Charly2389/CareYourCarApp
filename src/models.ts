@@ -38,3 +38,10 @@ export interface MaintenanceRecord {
   nextDueMileage?: number;
   createdAt: string; // ISO date
 }
+
+// Basic local user profile to avoid re-asking data
+export interface UserProfile {
+  name: string;
+  email?: string;
+  createdAt: string; // ISO date
+}

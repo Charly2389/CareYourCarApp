@@ -1,5 +1,10 @@
 import { MaintenanceRecord, Vehicle } from '../models';
-import * as SQLite from 'expo-sqlite';
+// Use legacy API for broader compatibility and simpler types
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import * as SQLite from 'expo-sqlite/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 export interface Repo {
   // Vehicles
@@ -48,7 +53,7 @@ export class InMemoryRepo implements Repo {
 
 // --- SQLite implementation ---
 class SQLiteRepo implements Repo {
-  private db: SQLite.SQLiteDatabase;
+  private db: any;
   private initialized = false;
 
   constructor() {
@@ -89,41 +94,29 @@ class SQLiteRepo implements Repo {
     this.initialized = true;
   }
 
-  private exec<T = any>(sql: string, params: any[] = []): Promise<SQLite.SQLResultSet> {
+  private exec<T = any>(sql: string, params: any[] = []): Promise<any> {
     return new Promise((resolve, reject) => {
-      this.db.readTransaction?.((tx) => {
+      this.db.transaction((tx: any) => {
         tx.executeSql(
           sql,
           params,
-          (_tx, result) => resolve(result),
-          (_tx, err) => {
+          (_tx: any, result: any) => resolve(result),
+          (_tx: any, err: any) => {
             reject(err);
             return false;
           }
         );
-      }) ||
-        // fallback when readTransaction not available
-        this.db.transaction((tx) => {
-          tx.executeSql(
-            sql,
-            params,
-            (_tx, result) => resolve(result),
-            (_tx, err) => {
-              reject(err);
-              return false;
-            }
-          );
-        });
+      });
     });
   }
 
   private execBatch(statements: [string, any[]][]): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.transaction((tx) => {
+      this.db.transaction((tx: any) => {
         for (const [sql, params] of statements) {
           tx.executeSql(sql, params);
         }
-      }, reject, resolve);
+      }, reject as any, resolve as any);
     });
   }
 
@@ -190,12 +183,80 @@ class SQLiteRepo implements Repo {
   }
 }
 
-// Prefer SQLite; fall back to in-memory if something goes wrong at runtime
+// --- AsyncStorage implementation (for web or fallback) ---
+class AsyncStorageRepo implements Repo {
+  private VKEY = 'cyc/vehicles';
+  private MKEY = 'cyc/maintenance';
+
+  private async loadVehicles(): Promise<Vehicle[]> {
+    try {
+      const raw = await AsyncStorage.getItem(this.VKEY);
+      return raw ? (JSON.parse(raw) as Vehicle[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  private async saveVehicles(list: Vehicle[]): Promise<void> {
+    try { await AsyncStorage.setItem(this.VKEY, JSON.stringify(list)); } catch {}
+  }
+  private async loadMaintenance(): Promise<MaintenanceRecord[]> {
+    try {
+      const raw = await AsyncStorage.getItem(this.MKEY);
+      return raw ? (JSON.parse(raw) as MaintenanceRecord[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  private async saveMaintenance(list: MaintenanceRecord[]): Promise<void> {
+    try { await AsyncStorage.setItem(this.MKEY, JSON.stringify(list)); } catch {}
+  }
+
+  async listVehicles(): Promise<Vehicle[]> {
+    const list = await this.loadVehicles();
+    return list.sort((a, b) => a.make.localeCompare(b.make));
+  }
+  async getVehicle(id: string): Promise<Vehicle | undefined> {
+    const list = await this.loadVehicles();
+    return list.find((v) => v.id === id);
+  }
+  async upsertVehicle(v: Vehicle): Promise<void> {
+    const list = await this.loadVehicles();
+    const idx = list.findIndex((x) => x.id === v.id);
+    if (idx >= 0) list[idx] = v; else list.push(v);
+    await this.saveVehicles(list);
+  }
+  async deleteVehicle(id: string): Promise<void> {
+    const vlist = (await this.loadVehicles()).filter((v) => v.id !== id);
+    await this.saveVehicles(vlist);
+    const mlist = (await this.loadMaintenance()).filter((m) => m.vehicleId !== id);
+    await this.saveMaintenance(mlist);
+  }
+  async listMaintenance(vehicleId: string): Promise<MaintenanceRecord[]> {
+    const list = await this.loadMaintenance();
+    return list.filter((m) => m.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async upsertMaintenance(r: MaintenanceRecord): Promise<void> {
+    const list = await this.loadMaintenance();
+    const idx = list.findIndex((x) => x.id === r.id);
+    if (idx >= 0) list[idx] = r; else list.push(r);
+    await this.saveMaintenance(list);
+  }
+  async deleteMaintenance(id: string): Promise<void> {
+    const list = (await this.loadMaintenance()).filter((m) => m.id !== id);
+    await this.saveMaintenance(list);
+  }
+}
+
+// Prefer SQLite (native); use AsyncStorage on web or if something fails
 let repoImpl: Repo;
-try {
-  repoImpl = new SQLiteRepo();
-} catch (_e) {
-  repoImpl = new InMemoryRepo();
+if (Platform.OS === 'web') {
+  repoImpl = new AsyncStorageRepo();
+} else {
+  try {
+    repoImpl = new SQLiteRepo();
+  } catch (_e) {
+    repoImpl = new AsyncStorageRepo();
+  }
 }
 
 export const repo: Repo = repoImpl;
