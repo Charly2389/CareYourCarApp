@@ -68,7 +68,7 @@ class SQLiteRepo implements Repo {
     await this.execBatch([
       ['PRAGMA foreign_keys = ON;', []],
       [
-        'CREATE TABLE IF NOT EXISTS vehicles (\n          id TEXT PRIMARY KEY NOT NULL,\n          make TEXT NOT NULL,\n          model TEXT NOT NULL,\n          year INTEGER NOT NULL,\n          plate TEXT,\n          vin TEXT,\n          mileage INTEGER NOT NULL,\n          fuelType TEXT NOT NULL,\n          photoUri TEXT,\n          createdAt TEXT NOT NULL\n        );',
+        'CREATE TABLE IF NOT EXISTS vehicles (\n          id TEXT PRIMARY KEY NOT NULL,\n          make TEXT NOT NULL,\n          model TEXT NOT NULL,\n          year INTEGER NOT NULL,\n          firstRegistrationYear INTEGER,\n          plate TEXT,\n          vin TEXT,\n          mileage INTEGER NOT NULL,\n          fuelType TEXT NOT NULL,\n          photoUri TEXT,\n          createdAt TEXT NOT NULL\n        );',
         [],
       ],
       [
@@ -79,16 +79,21 @@ class SQLiteRepo implements Repo {
       ['CREATE INDEX IF NOT EXISTS idx_maint_vehicle ON maintenance(vehicleId);', []],
       ['CREATE INDEX IF NOT EXISTS idx_maint_date ON maintenance(date);', []],
     ]);
-    // Lightweight migration: ensure photoUri column exists
+    // Lightweight migrations: ensure new columns exist
     try {
       const info = await this.exec("PRAGMA table_info(vehicles)");
       let hasPhoto = false;
+      let hasFirstReg = false;
       for (let i = 0; i < info.rows.length; i++) {
         const row = info.rows.item(i) as any;
-        if (row.name === 'photoUri') { hasPhoto = true; break; }
+        if (row.name === 'photoUri') { hasPhoto = true; }
+        if (row.name === 'firstRegistrationYear') { hasFirstReg = true; }
       }
       if (!hasPhoto) {
         await this.exec('ALTER TABLE vehicles ADD COLUMN photoUri TEXT');
+      }
+      if (!hasFirstReg) {
+        await this.exec('ALTER TABLE vehicles ADD COLUMN firstRegistrationYear INTEGER');
       }
     } catch { /* ignore */ }
     this.initialized = true;
@@ -137,9 +142,21 @@ class SQLiteRepo implements Repo {
   async upsertVehicle(v: Vehicle): Promise<void> {
     await this.init();
     await this.exec(
-      `INSERT OR REPLACE INTO vehicles (id, make, model, year, plate, vin, mileage, fuelType, photoUri, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [v.id, v.make, v.model, v.year, v.plate ?? null, v.vin ?? null, v.mileage, v.fuelType, v.photoUri ?? null, v.createdAt]
+      `INSERT OR REPLACE INTO vehicles (id, make, model, year, firstRegistrationYear, plate, vin, mileage, fuelType, photoUri, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        v.id,
+        v.make,
+        v.model,
+        v.year,
+        v.firstRegistrationYear ?? null,
+        v.plate ?? null,
+        v.vin ?? null,
+        v.mileage,
+        v.fuelType,
+        v.photoUri ?? null,
+        v.createdAt,
+      ]
     );
   }
   async deleteVehicle(id: string): Promise<void> {

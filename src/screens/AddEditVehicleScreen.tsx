@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
@@ -15,6 +15,7 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
+  const [firstRegYear, setFirstRegYear] = useState('');
   const [plate, setPlate] = useState('');
   const [mileage, setMileage] = useState('');
   const [fuelType, setFuelType] = useState<typeof fuels[number]>('gasolina');
@@ -26,8 +27,8 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
   }, []);
 
   const onSave = async () => {
-    if (!make || !model || !year || !mileage) {
-      Alert.alert('Campos requeridos', 'Marca, modelo, año y km son obligatorios.');
+    if (!make || !model || !year || !mileage || !firstRegYear) {
+      Alert.alert('Campos requeridos', 'Marca, modelo, a?o (modelo), a?o de primera matriculaci?n y km son obligatorios.');
       return;
     }
     const v: Vehicle = {
@@ -35,6 +36,7 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
       make,
       model,
       year: Number(year),
+      firstRegistrationYear: Number(firstRegYear),
       plate: plate || undefined,
       vin: undefined,
       mileage: Number(mileage),
@@ -55,16 +57,21 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
 
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Año</Text>
+          <Text style={styles.label}>A�o (modelo)</Text>
           <TextInput style={styles.input} value={year} onChangeText={setYear} placeholder="2018" placeholderTextColor="#6B7280" keyboardType="numeric" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Km actuales</Text>
           <TextInput style={styles.input} value={mileage} onChangeText={setMileage} placeholder="85000" placeholderTextColor="#6B7280" keyboardType="numeric" />
         </View>
+
+      <Text style={styles.label}>Año primera matriculación</Text>
+      <TextInput style={styles.input} value={firstRegYear} onChangeText={setFirstRegYear} placeholder="2019" placeholderTextColor="#6B7280" keyboardType="numeric" />
+
+ 
       </View>
 
-      <Text style={styles.label}>Matrícula</Text>
+      <Text style={styles.label}>Matr�cula</Text>
       <TextInput style={styles.input} value={plate} onChangeText={setPlate} placeholder="0000-XXX" placeholderTextColor="#6B7280" />
 
       <Text style={styles.label}>Combustible</Text>
@@ -104,3 +111,9 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#2563EB', padding: 14, borderRadius: 12, marginTop: 20, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '600' },
 });
+
+
+
+
+
+

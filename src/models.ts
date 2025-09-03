@@ -5,6 +5,8 @@ export interface Vehicle {
   make: string;
   model: string;
   year: number;
+  // Año de primera matriculación (para normativa ITV)
+  firstRegistrationYear?: number;
   plate?: string;
   vin?: string;
   mileage: number;

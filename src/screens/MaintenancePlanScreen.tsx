@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, TextInput, Alert, Platform } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
@@ -7,6 +7,8 @@ import type { Vehicle, MaintenanceType } from '../models';
 import { getMaintenanceGuide, MaintenanceGuideItem } from '../services/guides';
 import { loadCustomPlan, saveCustomPlan } from '../services/guides/store';
 import { submitUserEdit, checkAndApplyConsensus } from '../services/guides/community';
+
+import TickIcon from '../components/TickIcon';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MaintenancePlan'>;
 
@@ -19,9 +21,19 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [baseItems, setBaseItems] = useState<MaintenanceGuideItem[]>([]);
   const [items, setItems] = useState<MaintenanceGuideItem[]>([]);
-  const [draft, setDraft] = useState<MaintenanceGuideItem[]>([]);
+    const [draft, setDraft] = useState<MaintenanceGuideItem[]>([]);
   const [editing, setEditing] = useState(false);
+  
+  
+  const [legendTip, setLegendTip] = useState<'verified' | 'default' | 'custom' | null>(null);
 
+function computeItvIntervalMonths(vehicleYear: number): number | undefined {
+  const nowYear = new Date().getFullYear();
+  const age = Math.max(0, nowYear - vehicleYear);
+  if (age < 4) return undefined;
+  if (age < 10) return 24;
+  return 12;
+}
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -29,7 +41,7 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
         const v = await repo.getVehicle(vehicleId);
         if (!mounted) return;
         if (!v) {
-          setError('Vehículo no encontrado');
+          setError('Veh?culo no encontrado');
           setLoading(false);
           return;
         }
@@ -49,15 +61,15 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
           merged = merged.filter((it) => !custom.find((c) => c.type === it.type && c.disabled));
           merged = merged.map((it) => {
             const ov = custom.find((c) => c.type === it.type && !c.disabled);
-            return ov ? { ...it, intervalKm: ov.intervalKm ?? it.intervalKm, intervalMonths: ov.intervalMonths ?? it.intervalMonths, label: ov.label ?? it.label } : it;
+            return ov ? { ...it, intervalKm: ov.intervalKm ?? it.intervalKm, intervalMonths: ov.intervalMonths ?? it.intervalMonths, label: ov.label ?? it.label, userVerified: (ov.userVerified ?? (it as any).userVerified) } : it;
           });
           for (const ov of custom) {
             if (ov.disabled) continue;
             const exists = merged.find((m) => m.type === ov.type && (ov.label ? (m.label || m.type) === ov.label : false));
-            if (!exists && (ov.label || ov.intervalKm || ov.intervalMonths)) merged.push(ov);
+            if (!exists && (ov.label || ov.intervalKm || ov.intervalMonths || (ov as any).userVerified !== undefined)) merged.push(ov);
           }
         }
-        setItems(merged);
+        // Ajuste ITV Espa?a seg?n antig?edad\n        merged = merged.map((it) => it.type === 'itv' ? { ...it, intervalMonths: computeItvIntervalMonths(v.firstRegistrationYear ?? v.year) } : it);\n        setItems(merged);
       } catch (e: any) {
         setError(e?.message || 'No se pudieron cargar las sugerencias');
       } finally {
@@ -90,7 +102,7 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
   };
 
   const onSave = async () => {
-    const payload: MaintenanceGuideItem[] = draft.map((d) => ({ type: d.type, intervalKm: d.intervalKm, intervalMonths: d.intervalMonths, label: d.label }));
+    const payload: MaintenanceGuideItem[] = draft.map((d) => ({ type: d.type, intervalKm: d.intervalKm, intervalMonths: d.intervalMonths, label: d.label, userVerified: (d as any).userVerified }));
     for (const base of baseItems) {
       const stillThere = draft.find((d) => d.type === base.type);
       if (!stillThere) payload.push({ type: base.type, disabled: true } as MaintenanceGuideItem);
@@ -120,19 +132,19 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
   };
 
   const addTask = () => {
-    setDraft((prev) => [{ type: 'otros', label: '', intervalKm: undefined, intervalMonths: undefined }, ...prev]);
+    setDraft((prev) => [{ type: 'otros', label: '', intervalKm: undefined, intervalMonths: undefined, userVerified: false } as any, ...prev]);
   };
 
   const removeTask = (index: number) => {
     const perform = () => setDraft((prev) => prev.filter((_, i) => i !== index));
     if (Platform.OS === 'web') {
       // @ts-ignore
-      const ok = (typeof window !== 'undefined' && window.confirm) ? window.confirm('¿Seguro que deseas eliminar esta tarea del plan?') : true;
+      const ok = (typeof window !== 'undefined' && window.confirm) ? window.confirm('?Seguro que deseas eliminar esta tarea del plan?') : true;
       if (ok) perform();
     } else {
       Alert.alert(
         'Eliminar tarea',
-        '¿Seguro que deseas eliminar esta tarea del plan?',
+        '?Seguro que deseas eliminar esta tarea del plan?',
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Eliminar', style: 'destructive', onPress: perform },
@@ -155,17 +167,18 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
     return !(sameKm && sameMonths && sameLabel);
   };
 
-  const getTickStyle = (it: MaintenanceGuideItem) => {
-    if (isCustom(it)) return { tick: styles.tickYellow, text: styles.tickYellowText, label: 'mantenimiento personalizado' } as const;
-    if (it.reliability === 'verified') return { tick: styles.tickGreen, text: styles.tickGreenText, label: 'verificado por los usuarios' } as const;
-    return { tick: styles.tickOrange, text: styles.tickOrangeText, label: 'mantenimiento por defecto' } as const;
+    const getTickStyle = (it: MaintenanceGuideItem) => {
+    if ((it as any).userVerified) return { color: '#10B981', tick: styles.tickGreen, text: styles.tickGreenText, label: 'contrastado por ti' } as const;
+    if (it.reliability === 'verified') return { color: '#10B981', tick: styles.tickGreen, text: styles.tickGreenText, label: 'verificado por la comunidad' } as const;
+    if (isCustom(it)) return { color: '#FDE047', tick: styles.tickYellow, text: styles.tickYellowText, label: 'mantenimiento personalizado' } as const;
+    return { color: '#F59E0B', tick: styles.tickOrange, text: styles.tickOrangeText, label: 'mantenimiento por defecto' } as const;
   };
 
   if (loading) {
     return (
       <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
         <ActivityIndicator />
-        <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Cargando plan de mantenimiento…</Text>
+        <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Cargando plan de mantenimiento?</Text>
       </View>
     );
   }
@@ -180,9 +193,66 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{vehicle?.make} {vehicle?.model} · {vehicle?.year}</Text>
+      <Text style={styles.header}>{vehicle?.make} {vehicle?.model} ? {vehicle?.year}</Text>
       <Text style={styles.sub}>Sugerencias basadas en plantillas locales{vehicle?.vin ? ' y VIN' : ''}.</Text>
 
+      {/* Leyenda de ticks para clarificar el significado de cada color */}
+      <View style={styles.legend}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Tick verde verificado"
+          accessibilityHint="Muestra explicaci?n del tick verde"
+          onPress={() => setLegendTip((v) => (v === 'verified' ? null : 'verified'))}
+          style={styles.legendItem}
+        >
+          <TickIcon size={18} color="#10B981" />
+          <Text style={[styles.legendText, styles.tickGreenText]}>Verificado</Text>
+          {legendTip === 'verified' ? (
+            <View style={[styles.tooltip, Platform.OS === 'android' ? { elevation: 2 } : null]}>
+              <Text style={styles.tooltipText}>
+                Tick verde: mantenimiento contrastado con el libro de mantenimiento oficial del veh?culo o verificado por la comunidad de CareYourCar (m?s de 3 usuarios con esta marca/modelo/versi?n han coincidido en los kms/tiempos).
+              </Text>
+              <View style={styles.tooltipArrow} />
+            </View>
+          ) : null}
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Tick naranja por defecto"
+          accessibilityHint="Muestra explicaci?n del tick naranja"
+          onPress={() => setLegendTip((v) => (v === 'default' ? null : 'default'))}
+          style={styles.legendItem}
+        >
+          <TickIcon size={18} color="#F59E0B" />
+          <Text style={[styles.legendText, styles.tickOrangeText]}>Por defecto</Text>
+          {legendTip === 'default' ? (
+            <View style={[styles.tooltip, Platform.OS === 'android' ? { elevation: 2 } : null]}>
+              <Text style={styles.tooltipText}>
+                Tick naranja: CareYourCarApp tiene predefinidos una serie de mantenimientos gen?ricos. Cada marca/modelo y versi?n es diferente, por eso te recomendamos que consultes el libro de mantenimiento de tu veh?culo y adaptes los kilometrajes/tiempos a lo recomendado por el fabricante.
+              </Text>
+              <View style={styles.tooltipArrow} />
+            </View>
+          ) : null}
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Tick amarillo personalizado"
+          accessibilityHint="Muestra explicaci?n del tick amarillo"
+          onPress={() => setLegendTip((v) => (v === 'custom' ? null : 'custom'))}
+          style={styles.legendItem}
+        >
+          <TickIcon size={18} color="#FDE047" />
+          <Text style={[styles.legendText, styles.tickYellowText]}>Personalizado</Text>
+          {legendTip === 'custom' ? (
+            <View style={[styles.tooltip, Platform.OS === 'android' ? { elevation: 2 } : null]}>
+              <Text style={styles.tooltipText}>
+                Tick amarillo: mantenimiento modificado o creado por ti, pero no contrastado con el libro de mantenimiento oficial del veh?culo.
+              </Text>
+              <View style={styles.tooltipArrow} />
+            </View>
+          ) : null}
+        </TouchableOpacity>
+      </View>
       <View style={styles.warning}>
         <Text style={styles.warningTitle}>Aviso</Text>
         <Text style={styles.warningText}>Este plan es orientativo. Consulta el Libro de mantenimiento del fabricante y ajusta los valores si es necesario.</Text>
@@ -196,7 +266,7 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
         ) : (
           <>
             <TouchableOpacity style={[styles.btnSecondary, { marginRight: 8 }]} onPress={addTask}>
-              <Text style={styles.btnSecondaryText}>Añadir tarea</Text>
+              <Text style={styles.btnSecondaryText}>{'A\u00f1adir Mantenimiento'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.btnSecondary, { marginRight: 8 }]} onPress={onCancel}>
               <Text style={styles.btnSecondaryText}>Cancelar</Text>
@@ -217,7 +287,7 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
               <View style={styles.statusCol}>
                 {(() => { const s = getTickStyle(item); return (
                   <>
-                    <Text style={[styles.tick, s.tick]}>✓</Text>
+                    <TickIcon size={20} color={s.color} />
                     <Text style={[styles.tickLabel, s.text]}>{s.label}</Text>
                   </>
                 ); })()}
@@ -248,7 +318,7 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
                       style={styles.input}
                       value={item.label ?? (item.type.charAt(0).toUpperCase() + item.type.slice(1))}
                       onChangeText={(t) => updateDraft(index, { label: t })}
-                      placeholder="Ej: Revisión presión neumáticos"
+                      placeholder="Ej: Revisi?n presi?n neum?ticos"
                       placeholderTextColor="#6B7280"
                     />
                     <View style={styles.segmentWrap}>
@@ -264,9 +334,21 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
                         <TextInput style={styles.input} keyboardType="numeric" value={item.intervalKm ? String(item.intervalKm) : ''} onChangeText={(t) => updateDraft(index, { intervalKm: t ? Number(t) : undefined })} placeholder="15000" placeholderTextColor="#6B7280" />
                       </View>
                       <View style={{ width: 120 }}>
-                        <Text style={styles.inputLabel}>Cada (años)</Text>
+                        <Text style={styles.inputLabel}>Cada (a?os)</Text>
                         <TextInput style={styles.input} keyboardType="numeric" value={item.intervalMonths ? String(Math.round(item.intervalMonths / 12)) : ''} onChangeText={(t) => updateDraft(index, { intervalMonths: t ? Number(t) * 12 : undefined })} placeholder="1" placeholderTextColor="#6B7280" />
                       </View>
+                    </View>
+                    <View style={styles.verifyRow}>
+                      <TouchableOpacity
+                        accessibilityRole='checkbox'
+                        accessibilityLabel='Mantenimiento contrastado con Libro oficial'
+                        accessibilityState={{ checked: !!(item as any).userVerified }}
+                        onPress={() => updateDraft(index, { userVerified: !(item as any).userVerified })}
+                        style={[styles.checkbox, (item as any).userVerified && styles.checkboxChecked]}
+                      >
+                        {(item as any).userVerified ? <TickIcon size={14} color='#10B981' /> : null}
+                      </TouchableOpacity>
+                      <Text style={styles.verifyLabel}>Mantenimiento contrastado con Libro oficial</Text>
                     </View>
                     {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
                   </>
@@ -285,7 +367,7 @@ function fmtInterval(it: MaintenanceGuideItem): string {
   const parts: string[] = [];
   if (it.intervalKm) parts.push(`${it.intervalKm.toLocaleString()} km`);
   if (it.intervalMonths) parts.push(`${it.intervalMonths} meses`);
-  if (parts.length === 0) return 'Revisar periódicamente';
+  if (parts.length === 0) return it.type === 'itv' ? 'Exento hasta los 4 a�os desde primera matriculaci�n' : 'Revisar peri�dicamente';
   return `Cada ${parts.join(' o ')}`;
 }
 
@@ -297,6 +379,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   header: { color: '#E5E7EB', fontSize: 16, fontWeight: '700', marginBottom: 4 },
   sub: { color: '#9CA3AF', marginBottom: 12 },
+  legend: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 12 , position: 'relative', zIndex: 50 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', position: 'relative' , zIndex: 60 },
+  legendText: { fontSize: 12, marginLeft: 6 },
+  tooltip: { position: 'absolute', top: '100%', left: 0, marginTop: 6, backgroundColor: '#111827', borderColor: '#374151', borderWidth: 1, borderRadius: 8, padding: 10, maxWidth: 320, zIndex: 9999 },
+  tooltipText: { color: '#E5E7EB', fontSize: 12, lineHeight: 16 },
+  tooltipArrow: { position: 'absolute', top: -5, left: 12, width: 10, height: 10, backgroundColor: '#111827', borderLeftColor: '#374151', borderTopColor: '#374151', borderLeftWidth: 1, borderTopWidth: 1, transform: [{ rotate: '45deg' }] },
+  verifyRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+  checkbox: { width: 18, height: 18, borderWidth: 1, borderColor: '#374151', borderRadius: 4, backgroundColor: '#0B1020', alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { borderColor: '#10B981', backgroundColor: '#0B1020' },
+  verifyLabel: { color: '#E5E7EB', marginLeft: 8, fontSize: 12 },
   warning: { backgroundColor: '#1F2937', borderColor: '#374151', borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 12 },
   warningTitle: { color: '#FBBF24', fontWeight: '700' },
   warningText: { color: '#E5E7EB', marginTop: 4 },
@@ -325,3 +417,22 @@ const styles = StyleSheet.create({
   tickOrangeText: { color: '#FDE68A' },
   tickYellowText: { color: '#FEF08A' },
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
