@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState, useLayoutEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
@@ -26,16 +26,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     return unsub;
   }, [navigation, vehicleId]);
 
-  const onDeleteVehicle = () => {
-    const perform = async () => {
-      await repo.deleteVehicle(vehicleId);
-      navigation.navigate('Vehicles');
-    };
-    Alert.alert('Eliminar vehículo', '¿Seguro que deseas eliminar este vehículo y su historial?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: perform },
-    ]);
-  };
+  // Eliminación movida a la lista de "Mis Coches"
 
   if (!vehicle) {
     return (
@@ -78,13 +69,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         <Text style={styles.subtitle}>Km: {vehicle.mileage.toLocaleString()}</Text>
       </View>
       
-      <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
-        <TouchableOpacity onPress={onDeleteVehicle}>
-          <Text style={{ color: '#FCA5A5', fontWeight: '600' }}>
-            Eliminar vehículo
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Botón de eliminar se ha movido a la sección "Mis Coches" */}
 
       {/* Tabs */}
       <View style={styles.segment}>

@@ -143,11 +143,15 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
 
   // Determine if an item is customized by the user (added or modified vs base template)
   const isCustom = (it: MaintenanceGuideItem): boolean => {
-    const base = baseItems.find((b) => b.type === it.type);
-    if (!base) return true; // user-added (e.g., otros)
+    // Some templates include multiple items of the same type (e.g., "otros") but with different labels.
+    // Prefer matching by both type and label to avoid false positives.
+    const candidates = baseItems.filter((b) => b.type === it.type);
+    if (candidates.length === 0) return true; // user-added (no base items for this type)
+    const norm = (s?: string) => (s || '').trim().toLowerCase();
+    const base = candidates.find((b) => norm(b.label) === norm(it.label)) || candidates[0];
     const sameKm = (base.intervalKm ?? undefined) === (it.intervalKm ?? undefined);
     const sameMonths = (base.intervalMonths ?? undefined) === (it.intervalMonths ?? undefined);
-    const sameLabel = (base.label ?? '') === (it.label ?? '');
+    const sameLabel = norm(base.label) === norm(it.label);
     return !(sameKm && sameMonths && sameLabel);
   };
 
@@ -213,7 +217,7 @@ export default function MaintenancePlanScreen({ navigation, route }: Props) {
               <View style={styles.statusCol}>
                 {(() => { const s = getTickStyle(item); return (
                   <>
-                    <Text style={[styles.tick, s.tick]}>V</Text>
+                    <Text style={[styles.tick, s.tick]}>✓</Text>
                     <Text style={[styles.tickLabel, s.text]}>{s.label}</Text>
                   </>
                 ); })()}

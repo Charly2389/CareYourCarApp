@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { Vehicle } from '../models';
@@ -17,6 +17,27 @@ export default function VehicleListScreen({ navigation }: Props) {
     return unsubscribe;
   }, [navigation]);
 
+  const confirmDeleteVehicle = (v: Vehicle) => {
+    const perform = async () => {
+      await repo.deleteVehicle(v.id);
+      setVehicles((prev) => prev.filter((x) => x.id !== v.id));
+    };
+    if (Platform.OS === 'web') {
+      // @ts-ignore
+      const ok = (typeof window !== 'undefined' && (window as any).confirm) ? (window as any).confirm('¿Seguro que deseas eliminar este vehículo y su historial?') : true;
+      if (ok) perform();
+    } else {
+      Alert.alert(
+        'Eliminar vehículo',
+        '¿Seguro que deseas eliminar este vehículo y su historial?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Eliminar', style: 'destructive', onPress: perform },
+        ]
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -26,6 +47,11 @@ export default function VehicleListScreen({ navigation }: Props) {
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VehicleDetail', { vehicleId: item.id })}>
             <Text style={styles.title}>{item.make} {item.model}</Text>
+            <View style={{ alignItems: 'flex-end', marginTop: 6 }}>
+              <TouchableOpacity onPress={() => confirmDeleteVehicle(item)}>
+                <Text style={{ color: '#FCA5A5', fontWeight: '600' }}>Eliminar vehículo</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.subtitle}>{item.year} • {item.plate ?? 'sin matrícula'} • {item.mileage.toLocaleString()} km</Text>
           </TouchableOpacity>
         )}
