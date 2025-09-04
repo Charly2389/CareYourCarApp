@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { InboxItem, listUnread, markRead, subscribe } from '../services/inbox';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../App';
 
 export default function Banner() {
   const [item, setItem] = useState<InboxItem | null>(null);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   useEffect(() => {
     let mounted = true;
@@ -31,9 +35,20 @@ export default function Banner() {
           <Text style={styles.title}>{item.title}</Text>
           <Text style={styles.body}>{item.body}</Text>
         </View>
-        <TouchableOpacity onPress={() => markRead(item.id)}>
-          <Text style={styles.action}>Cerrar</Text>
-        </TouchableOpacity>
+        {item.title === 'Actualización de km' ? (
+          <>
+            <TouchableOpacity onPress={() => navigation.navigate('UpdateMileage', { inboxId: item.id })}>
+              <Text style={styles.action}>Actualizar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => markRead(item.id)}>
+              <Text style={[styles.action, { marginLeft: 12 }]}>Cerrar</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity onPress={() => markRead(item.id)}>
+            <Text style={styles.action}>Cerrar</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

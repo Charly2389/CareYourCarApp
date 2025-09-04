@@ -15,6 +15,7 @@ import type { MaintenanceType } from './src/models';
 import Banner from './src/components/Banner';
 import OptionsScreen from './src/screens/OptionsScreen';
 import { checkKmReminderOnAppOpen } from './src/services/reminders/kmUpdate';
+import UpdateMileageScreen from './src/screens/UpdateMileageScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -24,6 +25,7 @@ export type RootStackParamList = {
   AddMaintenance: { vehicleId: string; presetType?: MaintenanceType; presetLabel?: string };
   MaintenancePlan: { vehicleId: string };
   Options: undefined;
+  UpdateMileage: { inboxId?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -83,6 +85,7 @@ export default function App() {
           <Stack.Screen name="AddMaintenance" component={AddEditMaintenanceScreen} options={{ title: 'Añadir Mantenimiento' }} />
           <Stack.Screen name="MaintenancePlan" component={MaintenancePlanScreen} options={{ title: 'Plan de mantenimiento' }} />
           <Stack.Screen name="Options" component={OptionsScreen} options={{ title: 'Opciones' }} />
+          <Stack.Screen name="UpdateMileage" component={UpdateMileageScreen} options={{ title: 'Actualizar km' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
