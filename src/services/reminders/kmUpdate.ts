@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { addInbox } from '../../services/inbox';
+import { repo } from '../../repository/Repo';
 
 type Freq = 'weekly' | 'monthly' | 'custom';
 
@@ -66,7 +67,17 @@ export async function checkKmReminderOnAppOpen(): Promise<void> {
       const due = new Date(opts.nextDueAt);
       if (Date.now() >= due.getTime()) {
         const vehicleId = k.startsWith(`${KEY_PREFIX}/vehicle/`) ? k.split('/').pop() : undefined;
-        await addInbox('Actualización de km', '¿Cuántos km lleva tu vehículo?', { vehicleId });
+        let body = '¿Cuántos km lleva tu vehículo?';
+        if (vehicleId) {
+          try {
+            const v = await repo.getVehicle(vehicleId);
+            if (v) {
+              const placa = v.plate ? ` (${v.plate})` : '';
+              body = `¿Cuántos km lleva tu ${v.make} ${v.model}${placa}?`;
+            }
+          } catch {}
+        }
+        await addInbox('Actualización de km', body, { vehicleId });
         const next = computeNextDue(new Date(), opts);
         await saveKmOptions({ ...opts, nextDueAt: next.toISOString() }, vehicleId);
       }
@@ -87,7 +98,16 @@ async function ensurePermissions(): Promise<boolean> {
 async function scheduleNotification(opts: KmUpdateOptions, vehicleId?: string): Promise<void> {
   if (!(await ensurePermissions())) return;
   const title = 'Actualización de km';
-  const body = '¿Cuántos km lleva tu vehículo?';
+  let body = '¿Cuántos km lleva tu vehículo?';
+  if (vehicleId) {
+    try {
+      const v = await repo.getVehicle(vehicleId);
+      if (v) {
+        const placa = v.plate ? ` (${v.plate})` : '';
+        body = `¿Cuántos km lleva tu ${v.make} ${v.model}${placa}?`;
+      }
+    } catch {}
+  }
   const next = opts.nextDueAt ? new Date(opts.nextDueAt) : computeNextDue(new Date(), opts);
   try {
     await Notifications.scheduleNotificationAsync({
