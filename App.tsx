@@ -13,6 +13,8 @@ import { getOnboardingDone, getUserProfile } from './src/services/storage';
 import MaintenancePlanScreen from './src/screens/MaintenancePlanScreen';
 import type { MaintenanceType } from './src/models';
 import Banner from './src/components/Banner';
+import OptionsScreen from './src/screens/OptionsScreen';
+import { checkKmReminderOnAppOpen } from './src/services/reminders/kmUpdate';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -21,6 +23,7 @@ export type RootStackParamList = {
   VehicleDetail: { vehicleId: string };
   AddMaintenance: { vehicleId: string; presetType?: MaintenanceType; presetLabel?: string };
   MaintenancePlan: { vehicleId: string };
+  Options: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -34,6 +37,10 @@ export default function App() {
       setOnboarded(flag || !!profile);
       setLoaded(true);
     });
+  }, []);
+
+  useEffect(() => {
+    checkKmReminderOnAppOpen();
   }, []);
 
   if (!loaded) return null;
@@ -52,7 +59,14 @@ export default function App() {
           }}
         >
           <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Vehicles" component={VehicleListScreen} options={{ title: 'Mis Coches' }} />
+          <Stack.Screen name="Vehicles" component={VehicleListScreen} options={({ navigation }) => ({
+            title: 'Mis Coches',
+            headerRight: () => (
+              <TouchableOpacity onPress={() => navigation.navigate('Options')}>
+                <Text style={{ color: '#60A5FA', fontWeight: '600' }}>Opciones</Text>
+              </TouchableOpacity>
+            ),
+          })} />
           <Stack.Screen name="AddVehicle" component={AddEditVehicleScreen} options={{ title: 'Añadir/Editar Coche' }} />
           <Stack.Screen
             name="VehicleDetail"
@@ -68,6 +82,7 @@ export default function App() {
           />
           <Stack.Screen name="AddMaintenance" component={AddEditMaintenanceScreen} options={{ title: 'Añadir Mantenimiento' }} />
           <Stack.Screen name="MaintenancePlan" component={MaintenancePlanScreen} options={{ title: 'Plan de mantenimiento' }} />
+          <Stack.Screen name="Options" component={OptionsScreen} options={{ title: 'Opciones' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
