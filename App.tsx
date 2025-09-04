@@ -25,7 +25,7 @@ export type RootStackParamList = {
   AddMaintenance: { vehicleId: string; presetType?: MaintenanceType; presetLabel?: string };
   MaintenancePlan: { vehicleId: string };
   Options: undefined;
-  UpdateMileage: { inboxId?: string } | undefined;
+  UpdateMileage: { inboxId?: string; vehicleId?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

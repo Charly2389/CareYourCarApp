@@ -10,6 +10,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'UpdateMileage'>;
 
 export default function UpdateMileageScreen({ route, navigation }: Props) {
   const inboxId = route.params?.inboxId;
+  const preselectVehicleId = (route.params as any)?.vehicleId as string | undefined;
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [km, setKm] = useState('');
@@ -19,7 +20,8 @@ export default function UpdateMileageScreen({ route, navigation }: Props) {
     (async () => {
       const list = await repo.listVehicles();
       setVehicles(list);
-      if (list.length > 0) setSelectedId(list[0].id);
+      if (preselectVehicleId && list.find((v) => v.id === preselectVehicleId)) setSelectedId(preselectVehicleId);
+      else if (list.length > 0) setSelectedId(list[0].id);
     })();
   }, []);
 
@@ -91,4 +93,3 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#2563EB', padding: 12, borderRadius: 10, marginTop: 16, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '600' },
 });
-

@@ -8,44 +8,69 @@ type Freq = 'weekly' | 'monthly' | 'custom';
 export interface KmUpdateOptions {
   frequency: Freq;
   customDays?: number; // only if frequency === 'custom'
+  hour?: number; // 0-23 local time
+  minute?: number; // 0-59
   nextDueAt?: string; // ISO
 }
 
-const KEY = 'cyc/options/kmUpdate';
+const KEY_PREFIX = 'cyc/options/kmUpdate';
 
-export async function loadKmOptions(): Promise<KmUpdateOptions | undefined> {
+function keyFor(vehicleId?: string) {
+  return vehicleId ? `${KEY_PREFIX}/vehicle/${vehicleId}` : `${KEY_PREFIX}`;
+}
+
+export async function loadKmOptions(vehicleId?: string): Promise<KmUpdateOptions | undefined> {
   try {
-    const raw = await AsyncStorage.getItem(KEY);
+    const raw = await AsyncStorage.getItem(keyFor(vehicleId));
     return raw ? (JSON.parse(raw) as KmUpdateOptions) : undefined;
   } catch {
     return undefined;
   }
 }
 
-export async function saveKmOptions(opts: KmUpdateOptions): Promise<void> {
+export async function saveKmOptions(opts: KmUpdateOptions, vehicleId?: string): Promise<void> {
   const normalized: KmUpdateOptions = { ...opts };
   if (!normalized.nextDueAt) {
     normalized.nextDueAt = computeNextDue(new Date(), opts).toISOString();
   }
-  await AsyncStorage.setItem(KEY, JSON.stringify(normalized));
-  await scheduleNotification(normalized);
+  await AsyncStorage.setItem(keyFor(vehicleId), JSON.stringify(normalized));
+  await scheduleNotification(normalized, vehicleId);
 }
 
 function computeNextDue(from: Date, opts: KmUpdateOptions): Date {
   const d = new Date(from.getTime());
-  const days = opts.frequency === 'weekly' ? 7 : opts.frequency === 'monthly' ? 30 : Math.max(1, opts.customDays || 7);
-  d.setDate(d.getDate() + days);
+  const hours = typeof opts.hour === 'number' ? opts.hour : 9;
+  const minutes = typeof opts.minute === 'number' ? opts.minute : 0;
+  if (opts.frequency === 'weekly') {
+    d.setDate(d.getDate() + 7);
+  } else if (opts.frequency === 'monthly') {
+    d.setMonth(d.getMonth() + 1);
+  } else {
+    const days = Math.max(1, opts.customDays || 7);
+    d.setDate(d.getDate() + days);
+  }
+  d.setHours(hours, minutes, 0, 0);
   return d;
 }
 
 export async function checkKmReminderOnAppOpen(): Promise<void> {
-  const opts = await loadKmOptions();
-  if (!opts?.nextDueAt) return;
-  const due = new Date(opts.nextDueAt);
-  if (Date.now() >= due.getTime()) {
-    await addInbox('Actualización de km', '¿Cuántos km lleva tu vehículo?');
-    const next = computeNextDue(new Date(), opts);
-    await saveKmOptions({ ...opts, nextDueAt: next.toISOString() });
+  const keys = await AsyncStorage.getAllKeys();
+  const kmKeys = keys.filter((k) => k.startsWith(KEY_PREFIX));
+  if (!kmKeys.includes(KEY_PREFIX)) kmKeys.push(KEY_PREFIX);
+  for (const k of kmKeys) {
+    try {
+      const raw = await AsyncStorage.getItem(k);
+      if (!raw) continue;
+      const opts = JSON.parse(raw) as KmUpdateOptions;
+      if (!opts?.nextDueAt) continue;
+      const due = new Date(opts.nextDueAt);
+      if (Date.now() >= due.getTime()) {
+        const vehicleId = k.startsWith(`${KEY_PREFIX}/vehicle/`) ? k.split('/').pop() : undefined;
+        await addInbox('Actualización de km', '¿Cuántos km lleva tu vehículo?', { vehicleId });
+        const next = computeNextDue(new Date(), opts);
+        await saveKmOptions({ ...opts, nextDueAt: next.toISOString() }, vehicleId);
+      }
+    } catch {}
   }
 }
 
@@ -59,19 +84,15 @@ async function ensurePermissions(): Promise<boolean> {
   return true;
 }
 
-async function scheduleNotification(opts: KmUpdateOptions): Promise<void> {
+async function scheduleNotification(opts: KmUpdateOptions, vehicleId?: string): Promise<void> {
   if (!(await ensurePermissions())) return;
-  try {
-    // Cancel any existing by storing id not used; expo API requires id on cancel
-  } catch {}
-  const seconds = (opts.frequency === 'weekly' ? 7 : opts.frequency === 'monthly' ? 30 : Math.max(1, opts.customDays || 7)) * 24 * 60 * 60;
+  const title = 'Actualización de km';
+  const body = '¿Cuántos km lleva tu vehículo?';
+  const next = opts.nextDueAt ? new Date(opts.nextDueAt) : computeNextDue(new Date(), opts);
   try {
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Actualización de km', body: '¿Cuántos km lleva tu vehículo?' },
-      trigger: { seconds, repeats: true } as any,
+      content: { title, body },
+      trigger: next as any,
     });
-  } catch {
-    // ignore scheduling errors on unsupported platforms
-  }
+  } catch {}
 }
-

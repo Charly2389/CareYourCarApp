@@ -37,7 +37,7 @@ export default function Banner() {
         </View>
         {item.title === 'Actualización de km' ? (
           <>
-            <TouchableOpacity onPress={() => navigation.navigate('UpdateMileage', { inboxId: item.id })}>
+            <TouchableOpacity onPress={() => navigation.navigate('UpdateMileage', { inboxId: item.id, vehicleId: item.payload?.vehicleId })}>
               <Text style={styles.action}>Actualizar</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => markRead(item.id)}>

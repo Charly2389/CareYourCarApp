@@ -7,6 +7,7 @@ export interface InboxItem {
   body: string;
   createdAt: string; // ISO
   read?: boolean;
+  payload?: any;
 }
 
 const KEY = 'cyc/inbox';
@@ -33,9 +34,9 @@ function emit(items: InboxItem[]) {
   for (const l of listeners) l(items);
 }
 
-export async function addInbox(title: string, body: string): Promise<void> {
+export async function addInbox(title: string, body: string, payload?: any): Promise<void> {
   const items = await load();
-  const item: InboxItem = { id: uuid(), title, body, createdAt: new Date().toISOString(), read: false };
+  const item: InboxItem = { id: uuid(), title, body, createdAt: new Date().toISOString(), read: false, payload };
   const next = [item, ...items].slice(0, 100);
   await save(next);
   emit(next);
