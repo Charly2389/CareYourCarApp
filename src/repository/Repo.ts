@@ -68,7 +68,7 @@ class SQLiteRepo implements Repo {
     await this.execBatch([
       ['PRAGMA foreign_keys = ON;', []],
       [
-        'CREATE TABLE IF NOT EXISTS vehicles (\n          id TEXT PRIMARY KEY NOT NULL,\n          make TEXT NOT NULL,\n          model TEXT NOT NULL,\n          year INTEGER NOT NULL,\n          firstRegistrationYear INTEGER,\n          plate TEXT,\n          vin TEXT,\n          mileage INTEGER NOT NULL,\n          fuelType TEXT NOT NULL,\n          photoUri TEXT,\n          createdAt TEXT NOT NULL\n        );',
+        'CREATE TABLE IF NOT EXISTS vehicles (\n          id TEXT PRIMARY KEY NOT NULL,\n          make TEXT NOT NULL,\n          model TEXT NOT NULL,\n          year INTEGER NOT NULL,\n          firstRegistrationYear INTEGER,\n          plate TEXT,\n          vin TEXT,\n          mileage INTEGER NOT NULL,\n          fuelType TEXT NOT NULL,\n          photoUri TEXT,\n          tirePressureFrontBar REAL,\n          tirePressureRearBar REAL,\n          createdAt TEXT NOT NULL\n        );',
         [],
       ],
       [
@@ -84,16 +84,26 @@ class SQLiteRepo implements Repo {
       const info = await this.exec("PRAGMA table_info(vehicles)");
       let hasPhoto = false;
       let hasFirstReg = false;
+      let hasTireFront = false;
+      let hasTireRear = false;
       for (let i = 0; i < info.rows.length; i++) {
         const row = info.rows.item(i) as any;
         if (row.name === 'photoUri') { hasPhoto = true; }
         if (row.name === 'firstRegistrationYear') { hasFirstReg = true; }
+        if (row.name === 'tirePressureFrontBar') { hasTireFront = true; }
+        if (row.name === 'tirePressureRearBar') { hasTireRear = true; }
       }
       if (!hasPhoto) {
         await this.exec('ALTER TABLE vehicles ADD COLUMN photoUri TEXT');
       }
       if (!hasFirstReg) {
         await this.exec('ALTER TABLE vehicles ADD COLUMN firstRegistrationYear INTEGER');
+      }
+      if (!hasTireFront) {
+        await this.exec('ALTER TABLE vehicles ADD COLUMN tirePressureFrontBar REAL');
+      }
+      if (!hasTireRear) {
+        await this.exec('ALTER TABLE vehicles ADD COLUMN tirePressureRearBar REAL');
       }
     } catch { /* ignore */ }
     this.initialized = true;
@@ -142,8 +152,8 @@ class SQLiteRepo implements Repo {
   async upsertVehicle(v: Vehicle): Promise<void> {
     await this.init();
     await this.exec(
-      `INSERT OR REPLACE INTO vehicles (id, make, model, year, firstRegistrationYear, plate, vin, mileage, fuelType, photoUri, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO vehicles (id, make, model, year, firstRegistrationYear, plate, vin, mileage, fuelType, photoUri, tirePressureFrontBar, tirePressureRearBar, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         v.id,
         v.make,
@@ -155,6 +165,8 @@ class SQLiteRepo implements Repo {
         v.mileage,
         v.fuelType,
         v.photoUri ?? null,
+        (v as any).tirePressureFrontBar ?? null,
+        (v as any).tirePressureRearBar ?? null,
         v.createdAt,
       ]
     );

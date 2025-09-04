@@ -11,6 +11,9 @@ export interface Vehicle {
   vin?: string;
   mileage: number;
   fuelType: FuelType;
+  // Recommended tyre pressures (bar)
+  tirePressureFrontBar?: number;
+  tirePressureRearBar?: number;
   // Local URI to a photo stored on device or cache
   photoUri?: string;
   createdAt: string; // ISO date
