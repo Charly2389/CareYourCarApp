@@ -44,6 +44,17 @@ export interface MaintenanceRecord {
   createdAt: string; // ISO date
 }
 
+// Log of tyre pressure measurements per wheel (bar)
+export interface TirePressureLog {
+  id: string;
+  vehicleId: string;
+  date: string; // ISO date
+  fl?: number; // Front Left
+  fr?: number; // Front Right
+  rl?: number; // Rear Left
+  rr?: number; // Rear Right
+}
+
 // Basic local user profile to avoid re-asking data
 export interface UserProfile {
   name: string;
