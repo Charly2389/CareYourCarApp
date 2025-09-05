@@ -1,17 +1,17 @@
-﻿import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { Vehicle } from '../models';
 import { repo } from '../repository/Repo';
 import { uuid } from '../utils/uuid';
+import PlusButton from '../components/PlusButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddVehicle'>;
 
 const fuels = ['gasolina', 'diesel', 'hibrido', 'electrico'] as const;
 
-export default function AddEditVehicleScreen({ navigation, route }: Props) {
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+export default function AddEditVehicleScreen({ navigation }: Props) {
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
@@ -20,26 +20,35 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
   const [mileage, setMileage] = useState('');
   const [fuelType, setFuelType] = useState<typeof fuels[number]>('gasolina');
 
-  const isEditing = Boolean(vehicle);
-
-  useEffect(() => {
-    // In future: load by id if editing
-  }, []);
-
   const onSave = async () => {
     if (!make || !model || !year || !mileage || !firstRegYear) {
-      Alert.alert('Campos requeridos', 'Marca, modelo, a?o (modelo), a?o de primera matriculaci?n y km son obligatorios.');
+      Alert.alert('Campos requeridos', 'Marca, modelo, año (modelo), año de primera matriculación y km son obligatorios.');
+      return;
+    }
+    const yearN = Number(year);
+    const firstRegN = Number(firstRegYear);
+    const mileageN = Number(mileage);
+    if (!isFinite(yearN) || yearN < 1900) {
+      Alert.alert('Valor inválido', 'Introduce un año de modelo válido.');
+      return;
+    }
+    if (!isFinite(firstRegN) || firstRegN < 1900) {
+      Alert.alert('Valor inválido', 'Introduce un año de primera matriculación válido.');
+      return;
+    }
+    if (!isFinite(mileageN) || mileageN < 0) {
+      Alert.alert('Valor inválido', 'Introduce un kilometraje válido.');
       return;
     }
     const v: Vehicle = {
-      id: vehicle?.id ?? uuid(),
+      id: uuid(),
       make,
       model,
-      year: Number(year),
-      firstRegistrationYear: Number(firstRegYear),
+      year: yearN,
+      firstRegistrationYear: firstRegN,
       plate: plate || undefined,
       vin: undefined,
-      mileage: Number(mileage),
+      mileage: mileageN,
       fuelType,
       createdAt: new Date().toISOString(),
     };
@@ -57,21 +66,19 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
 
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>A�o (modelo)</Text>
+          <Text style={styles.label}>Año (modelo)</Text>
           <TextInput style={styles.input} value={year} onChangeText={setYear} placeholder="2018" placeholderTextColor="#6B7280" keyboardType="numeric" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Km actuales</Text>
           <TextInput style={styles.input} value={mileage} onChangeText={setMileage} placeholder="85000" placeholderTextColor="#6B7280" keyboardType="numeric" />
         </View>
+      </View>
 
       <Text style={styles.label}>Año primera matriculación</Text>
       <TextInput style={styles.input} value={firstRegYear} onChangeText={setFirstRegYear} placeholder="2019" placeholderTextColor="#6B7280" keyboardType="numeric" />
 
- 
-      </View>
-
-      <Text style={styles.label}>Matr�cula</Text>
+      <Text style={styles.label}>Matrícula</Text>
       <TextInput style={styles.input} value={plate} onChangeText={setPlate} placeholder="0000-XXX" placeholderTextColor="#6B7280" />
 
       <Text style={styles.label}>Combustible</Text>
@@ -83,9 +90,7 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
         ))}
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={onSave}>
-        <Text style={styles.buttonText}>{isEditing ? 'Guardar' : 'Añadir coche'}</Text>
-      </TouchableOpacity>
+      <PlusButton size={56} accessibilityLabel="Añadir coche" onPress={onSave} style={{ alignSelf: 'center', marginTop: 20 }} />
     </View>
   );
 }
@@ -108,12 +113,6 @@ const styles = StyleSheet.create({
   segmentItemActive: { backgroundColor: '#1F2937', borderColor: '#2563EB' },
   segmentText: { color: '#9CA3AF', fontSize: 12 },
   segmentTextActive: { color: '#E5E7EB', fontWeight: '600' },
-  button: { backgroundColor: '#2563EB', padding: 14, borderRadius: 12, marginTop: 20, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  button: { },
+  buttonText: { },
 });
-
-
-
-
-
-

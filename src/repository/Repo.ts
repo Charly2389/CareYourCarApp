@@ -183,8 +183,8 @@ class SQLiteRepo implements Repo {
         v.mileage,
         v.fuelType,
         v.photoUri ?? null,
-        (v as any).tirePressureFrontBar ?? null,
-        (v as any).tirePressureRearBar ?? null,
+        v.tirePressureFrontBar ?? null,
+        v.tirePressureRearBar ?? null,
         v.createdAt,
       ]
     );

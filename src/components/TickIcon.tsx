@@ -1,12 +1,12 @@
 import React from 'react';
 import Svg, { Path } from 'react-native-svg';
-import { ViewStyle } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 
 type Props = {
   size?: number;
   color?: string;
   strokeWidth?: number;
-  style?: ViewStyle | ViewStyle[];
+  style?: StyleProp<ViewStyle>;
 };
 
 export default function TickIcon({ size = 20, color = '#10B981', strokeWidth = 3, style }: Props) {
@@ -23,4 +23,3 @@ export default function TickIcon({ size = 20, color = '#10B981', strokeWidth = 3
     </Svg>
   );
 }
-

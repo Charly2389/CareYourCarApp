@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { Vehicle } from '../models';
 import { repo } from '../repository/Repo';
+import PlusButton from '../components/PlusButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Vehicles'>;
 
@@ -23,8 +24,9 @@ export default function VehicleListScreen({ navigation }: Props) {
       setVehicles((prev) => prev.filter((x) => x.id !== v.id));
     };
     if (Platform.OS === 'web') {
-      // @ts-ignore
-      const ok = (typeof window !== 'undefined' && (window as any).confirm) ? (window as any).confirm('¿Seguro que deseas eliminar este vehículo y su historial?') : true;
+      const ok = (typeof globalThis !== 'undefined' && (globalThis as any).confirm)
+        ? (globalThis as any).confirm('¿Seguro que deseas eliminar este vehículo y su historial?')
+        : true;
       if (ok) perform();
     } else {
       Alert.alert(
@@ -52,14 +54,12 @@ export default function VehicleListScreen({ navigation }: Props) {
                 <Text style={{ color: '#FCA5A5', fontWeight: '600' }}>Eliminar vehículo</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.subtitle}>{item.year} • {item.plate ?? 'sin matrícula'} • {item.mileage.toLocaleString()} km</Text>
+            <Text style={styles.subtitle}>{item.year} · {item.plate ?? 'sin matrícula'} · {item.mileage.toLocaleString()} km</Text>
           </TouchableOpacity>
         )}
         contentContainerStyle={{ padding: 16 }}
       />
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddVehicle')}>
-        <Text style={styles.fabText}>＋</Text>
-      </TouchableOpacity>
+      <PlusButton style={styles.fab} size={64} accessibilityLabel="Añadir coche" onPress={() => navigation.navigate('AddVehicle')} />
     </View>
   );
 }
@@ -81,21 +81,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
     bottom: 24,
-    backgroundColor: '#2563EB',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 12px rgba(0,0,0,0.3)' },
-      default: {
-        shadowColor: '#000',
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-        elevation: 6,
-      },
-    }),
   },
-  fabText: { color: '#fff', fontSize: 28, lineHeight: 28 },
 });

@@ -90,13 +90,11 @@ export default function App() {
           <Stack.Screen name="MaintenancePlan" component={MaintenancePlanScreen} options={{ title: 'Plan de mantenimiento' }} />
           <Stack.Screen name="Options" component={OptionsScreen} options={{ title: 'Opciones' }} />
           <Stack.Screen name="UpdateMileage" component={UpdateMileageScreen} options={{ title: 'Actualizar km' }} />
-          <Stack.Screen name="MaintenanceCategory" component={MaintenanceCategoryScreen} options={{ title: "Mantenimiento" }} />
+          <Stack.Screen name="MaintenanceCategory" component={MaintenanceCategoryScreen} options={{ title: 'Mantenimiento' }} />
           <Stack.Screen name="TirePressureHistory" component={TirePressureHistoryScreen} options={{ title: 'Histórico presiones' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
   );
 }
-
-
 

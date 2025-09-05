@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { repo } from '../repository/Repo';
 import { uuid } from '../utils/uuid';
+import type { TirePressureLog } from '../models';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MaintenanceCategory'>;
 
@@ -30,8 +31,8 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
     (async () => {
       try {
         const v = await repo.getVehicle(vehicleId);
-        if (v && (v as any).tirePressureFrontBar) setRecFront(String((v as any).tirePressureFrontBar));
-        if (v && (v as any).tirePressureRearBar) setRecRear(String((v as any).tirePressureRearBar));
+        if (v?.tirePressureFrontBar) setRecFront(String(v.tirePressureFrontBar));
+        if (v?.tirePressureRearBar) setRecRear(String(v.tirePressureRearBar));
       } catch {}
     })();
   }, [vehicleId]);
@@ -42,8 +43,8 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
     try {
       const v = await repo.getVehicle(vehicleId);
       if (v) {
-        (v as any).tirePressureFrontBar = front;
-        (v as any).tirePressureRearBar = rear;
+        v.tirePressureFrontBar = front;
+        v.tirePressureRearBar = rear;
         await repo.upsertVehicle(v);
       }
     } catch {}
@@ -99,7 +100,17 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
             {editingWheel ? (
               <View style={[styles.measureBadge, { top: (editingWheel === 'FL' || editingWheel === 'FR') ? xy(editingWheel).y - 46 : xy(editingWheel).y + 12, left: xy(editingWheel).x - 50 }]}>
                 <Text style={styles.recText}>Medido</Text>
-                <TextInput style={[styles.editInputSmall, { marginLeft: 6 }]} keyboardType="numeric" value={measured[editingWheel]} onChangeText={(t) => setMeasured((m) => ({ ...m, [editingWheel]: t }))} onSubmitEditing={() => setEditingWheel(null)} onBlur={() => setEditingWheel(null)} placeholder={editingWheel === 'FL' || editingWheel === 'FR' ? recFront : recRear} placeholderTextColor="#6B7280" />
+                <TextInput
+                  style={[styles.editInputSmall, { marginLeft: 6 }]}
+                  keyboardType="numeric"
+                  autoFocus
+                  value={measured[editingWheel]}
+                  onChangeText={(t) => setMeasured((m) => ({ ...m, [editingWheel!]: t }))}
+                  onSubmitEditing={() => setEditingWheel(null)}
+                  onBlur={() => setEditingWheel(null)}
+                  placeholder={editingWheel === 'FL' || editingWheel === 'FR' ? recFront : recRear}
+                  placeholderTextColor="#6B7280"
+                />
               </View>
             ) : null}
           </View>
@@ -113,7 +124,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
                 const rr = Number(recRear);
                 const defF = isFinite(rf) ? rf : 2.3;
                 const defR = isFinite(rr) ? rr : 2.1;
-                const log = {
+                const log: TirePressureLog = {
                   id: uuid(),
                   vehicleId,
                   date: new Date().toISOString(),
@@ -121,7 +132,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
                   fr: measured.FR ? Number(measured.FR) : defF,
                   rl: measured.RL ? Number(measured.RL) : defR,
                   rr: measured.RR ? Number(measured.RR) : defR,
-                } as any;
+                };
                 try { await repo.addTirePressureLog(log); } catch {}
                 setMeasured({ FL: '', FR: '', RL: '', RR: '' });
               }}

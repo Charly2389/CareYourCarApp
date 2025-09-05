@@ -77,7 +77,7 @@ export async function checkKmReminderOnAppOpen(): Promise<void> {
             }
           } catch {}
         }
-        await addInbox('Actualización de km', body, { vehicleId });
+        await addInbox('Actualización de km', body, { type: 'kmUpdate', vehicleId });
         const next = computeNextDue(new Date(), opts);
         await saveKmOptions({ ...opts, nextDueAt: next.toISOString() }, vehicleId);
       }

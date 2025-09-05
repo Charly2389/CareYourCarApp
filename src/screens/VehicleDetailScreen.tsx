@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { MaintenanceRecord, Vehicle } from '../models';
 import { repo } from '../repository/Repo';
+import PlusButton from '../components/PlusButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VehicleDetail'>;
 
@@ -44,7 +45,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           if (result.canceled) return;
           const uri = result.assets?.[0]?.uri;
           if (!uri) return;
-          const updated: Vehicle = { ...vehicle, photoUri: uri } as Vehicle;
+          const updated: Vehicle = { ...vehicle!, photoUri: uri };
           await repo.upsertVehicle(updated);
           setVehicle(updated);
         }}>
@@ -87,7 +88,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                   Alert.alert('Valor inválido', 'Introduce un año de primera matriculación válido.');
                   return;
                 }
-                const updated: Vehicle = { ...vehicle, firstRegistrationYear: yr } as Vehicle;
+                const updated: Vehicle = { ...vehicle!, firstRegistrationYear: yr };
                 await repo.upsertVehicle(updated);
                 setVehicle(updated);
                 setEditingFirstReg(false);
@@ -114,9 +115,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         <>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <Text style={{ color: '#E5E7EB', fontWeight: '600' }}>Historial de mantenimientos</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('AddMaintenance', { vehicleId })}>
-              <Text style={{ color: '#60A5FA' }}>Añadir</Text>
-            </TouchableOpacity>
+            <PlusButton size={40} accessibilityLabel="Añadir mantenimiento" onPress={() => navigation.navigate('AddMaintenance', { vehicleId })} />
           </View>
           <FlatList
             data={maintenance}
@@ -167,4 +166,3 @@ const styles = StyleSheet.create({
   segmentText: { color: '#9CA3AF', fontSize: 12 },
   segmentTextActive: { color: '#E5E7EB', fontWeight: '600' },
 });
-

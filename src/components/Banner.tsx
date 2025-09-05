@@ -28,6 +28,8 @@ export default function Banner() {
 
   if (!item) return null;
 
+  const isKmUpdate = item?.payload?.type === 'kmUpdate';
+
   return (
     <View style={styles.wrap}>
       <View style={styles.banner}>
@@ -35,7 +37,7 @@ export default function Banner() {
           <Text style={styles.title}>{item.title}</Text>
           <Text style={styles.body}>{item.body}</Text>
         </View>
-        {item.title === 'Actualización de km' ? (
+        {isKmUpdate ? (
           <>
             <TouchableOpacity onPress={() => navigation.navigate('UpdateMileage', { inboxId: item.id, vehicleId: item.payload?.vehicleId })}>
               <Text style={styles.action}>Actualizar</Text>
@@ -57,7 +59,7 @@ export default function Banner() {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    top: Platform.select({ ios: 50, android: 20, default: 0 }),
+    top: Platform.select({ ios: 50, android: 20, default: 0 }) as number,
     left: 0,
     right: 0,
     zIndex: 1000,
