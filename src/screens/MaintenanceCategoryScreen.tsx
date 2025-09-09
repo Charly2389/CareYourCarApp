@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image, ScrollView } from 'react-native';
+﻿import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image, ScrollView, Linking } from 'react-native';
+import { addInbox } from '../services/inbox';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { repo } from '../repository/Repo';
@@ -25,6 +26,9 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
   const [editingFront, setEditingFront] = React.useState(false);
   const [editingRear, setEditingRear] = React.useState(false);
   const [editingWheel, setEditingWheel] = React.useState<'FL'|'FR'|'RL'|'RR'|null>(null);
+  const [wear, setWear] = React.useState({ FL: '', FR: '', RL: '', RR: '' });
+  const [editingWearWheel, setEditingWearWheel] = React.useState<'FL'|'FR'|'RL'|'RR'|null>(null);
+  const [warn, setWarn] = React.useState<{ FL: boolean; FR: boolean; RL: boolean; RR: boolean }>({ FL: false, FR: false, RL: false, RR: false });
   const [canvas, setCanvas] = React.useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
   React.useEffect(() => {
@@ -54,6 +58,30 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
 
   const P = { FL: { x: 0.22, y: 0.22 }, FR: { x: 0.78, y: 0.22 }, RL: { x: 0.22, y: 0.78 }, RR: { x: 0.78, y: 0.78 } } as const;
   const xy = (key: keyof typeof P) => ({ x: Math.round(P[key].x * canvas.w), y: Math.round(P[key].y * canvas.h) });
+  const POS_LABEL: Record<'FL'|'FR'|'RL'|'RR', string> = {
+    FL: 'delantera izquierda',
+    FR: 'delantera derecha',
+    RL: 'trasera izquierda',
+    RR: 'trasera derecha',
+  };
+
+  // Load last wear to color hotspots
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const list = await repo.listTireWearLogs(vehicleId);
+        const last = list[0];
+        if (last) {
+          setWarn({
+            FL: typeof last.fl === 'number' ? last.fl <= 1.6 : false,
+            FR: typeof last.fr === 'number' ? last.fr <= 1.6 : false,
+            RL: typeof last.rl === 'number' ? last.rl <= 1.6 : false,
+            RR: typeof last.rr === 'number' ? last.rr <= 1.6 : false,
+          });
+        }
+      } catch {}
+    })();
+  }, [vehicleId]);
 
   const renderNeumaticos = () => {
     if (!sub) {
@@ -67,10 +95,111 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         </View>
       );
     }
+    if (sub === 'Comprobacion Neumaticos') {
+      return (
+        <View style={{ marginTop: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={styles.sub}>Video: </Text>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={() => Linking.openURL('https://www.youtube.com/watch?v=GhbPKjN6J5s&t')}
+            >
+            <Text style={{ color: '#60A5FA', fontWeight: '600' }}>Cómo comprobar tus nemáticos correctamente.</Text>
+          </TouchableOpacity>
+          </View>
+          <Text style={styles.sub}>La profundidad minima legal del dibujo es 1,6 mm.</Text>
+          <View style={styles.carCanvas} onLayout={(e) => setCanvas({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+            <Image source={require('../../assets/car_top.png')} resizeMode="contain" style={styles.carImage} />
+            {(['FL','FR','RL','RR'] as const).map((w) => (
+              <TouchableOpacity
+                key={w}
+                style={[styles.wheelHotspot, warn[w] ? styles.wheelHotspotWarn : null, { top: xy(w).y - 15, left: xy(w).x - 15 }]}
+                onPress={() => setEditingWearWheel(w)}
+              />
+            ))}
+            {editingWearWheel && (
+              <View style={[styles.measureBadge, { top: xy(editingWearWheel).y - 52, left: xy(editingWearWheel).x - 64 }] }>
+                <Text style={{ color: '#9CA3AF', marginRight: 8 }}>{POS_LABEL[editingWearWheel]}</Text>
+                <TextInput
+                  style={styles.editInputSmall}
+                  keyboardType="numeric"
+                  autoFocus
+                  placeholder="mm"
+                  value={(wear as any)[editingWearWheel]}
+                  onChangeText={(txt) => {
+                    setWear((prev) => ({ ...prev, [editingWearWheel]: txt }));
+                    const v = parseFloat(txt.replace(',', '.'));
+                    if (!Number.isNaN(v)) {
+                      setWarn((prev) => ({ ...prev, [editingWearWheel]: v <= 1.6 } as any));
+                    }
+                  }}
+                  onSubmitEditing={() => setEditingWearWheel(null)}
+                  onBlur={() => setEditingWearWheel(null)}
+                />
+                <Text style={{ color: '#9CA3AF', marginLeft: 6 }}>mm</Text>
+              </View>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', marginTop: 12 }}>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={async () => {
+                const parse = (s: string) => (s ? Number(s.replace(',', '.')) : undefined);
+                const log = {
+                  id: uuid(),
+                  vehicleId,
+                  date: new Date().toISOString(),
+                  fl: parse(wear.FL),
+                  fr: parse(wear.FR),
+                  rl: parse(wear.RL),
+                  rr: parse(wear.RR),
+                } as any;
+                try {
+                  await repo.addTireWearLog(log);
+                  // Update warn state based on saved values and emit banners
+                  const keys: ('FL'|'FR'|'RL'|'RR')[] = ['FL','FR','RL','RR'];
+                  const posLabel: Record<'FL'|'FR'|'RL'|'RR', string> = {
+                    FL: 'delantera izquierda',
+                    FR: 'delantera derecha',
+                    RL: 'trasera izquierda',
+                    RR: 'trasera derecha',
+                  };
+                  const newWarn: any = { ...warn };
+                  for (const k of keys) {
+                    const val = (log as any)[k.toLowerCase()];
+                    if (typeof val === 'number') {
+                      newWarn[k] = val <= 1.6;
+                      if (newWarn[k]) {
+                        await addInbox('Neumáticos', `Rueda ${posLabel[k]} desgastada. Sustitúyala`);
+                      }
+                    }
+                  }
+                  setWarn(newWarn);
+                } catch {}
+                setWear({ FL: '', FR: '', RL: '', RR: '' });
+              }}
+              style={[styles.backBtn, { backgroundColor: '#10B98122', borderColor: '#10B98155', marginRight: 12 }]}
+            >
+              <Text style={[styles.backText, { color: '#A7F3D0' }]}>Guardar registro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={() => navigation.navigate('TireWearHistory', { vehicleId })}
+              style={[styles.backBtn, { backgroundColor: '#111827' }]}
+            >
+              <Text style={styles.backText}>Consultar histÃ³rico</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={() => setSub(null)} style={[styles.backBtn, { alignSelf: 'flex-start', marginTop: 12 }]}>
+            <Text style={styles.backText}>AtrÃ¡s</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
     if (sub === 'Comprobacion Presion') {
       return (
         <View style={{ marginTop: 12 }}>
-          <Text style={styles.sub}>Pulsa sobre la presión recomendada para editarla</Text>
+          <Text style={styles.sub}>Pulsa sobre la presiÃ³n recomendada para editarla</Text>
           <View style={styles.carCanvas} onLayout={(e) => setCanvas({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
             <Image source={require('../../assets/car_top.png')} resizeMode="contain" style={styles.carImage} />
             <TouchableOpacity style={[styles.recBadge, { top: xy('FL').y - 44, left: xy('FL').x - 60 }]} onPress={() => setEditingFront(true)}>
@@ -145,27 +274,27 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
               onPress={() => navigation.navigate('TirePressureHistory', { vehicleId })}
               style={[styles.backBtn, { backgroundColor: '#111827' }]}
             >
-              <Text style={styles.backText}>Consultar histórico</Text>
+              <Text style={styles.backText}>Consultar histÃ³rico</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={() => setSub(null)} style={[styles.backBtn, { alignSelf: 'flex-start', marginTop: 12 }]}>
-            <Text style={styles.backText}>Atrás</Text>
+            <Text style={styles.backText}>AtrÃ¡s</Text>
           </TouchableOpacity>
         </View>
       );
     }
-    return <Text style={styles.selHint}>Próximamente: {sub}</Text>;
+    return <Text style={styles.selHint}>PrÃ³ximamente: {sub}</Text>;
   };
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>Atrás</Text>
+          <Text style={styles.backText}>AtrÃ¡s</Text>
         </TouchableOpacity>
         <Text style={styles.header}>{category}</Text>
         {category.toLowerCase().includes('neumatic') ? renderNeumaticos() : (
-          <Text style={styles.selHint}>Selecciona una opción (pendiente de implementar)</Text>
+          <Text style={styles.selHint}>Selecciona una opciÃ³n (pendiente de implementar)</Text>
         )}
       </ScrollView>
     </View>
@@ -190,4 +319,5 @@ const styles = StyleSheet.create({
   editInputSmall: { minWidth: 64, backgroundColor: '#0B1020', color: '#E5E7EB', paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#374151', borderRadius: 6 },
   wheelHotspot: { position: 'absolute', width: 30, height: 30, borderRadius: 15, backgroundColor: '#2563EB33', borderColor: '#60A5FA', borderWidth: 2 },
   measureBadge: { position: 'absolute', flexDirection: 'row', alignItems: 'center', backgroundColor: '#111827', borderColor: '#1F2937', borderWidth: 1, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, elevation: 3 },
+  wheelHotspotWarn: { backgroundColor: '#DC262633', borderColor: '#F87171' },
 });

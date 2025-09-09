@@ -3,20 +3,20 @@ import { View, Text, StyleSheet, FlatList } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { repo } from '../repository/Repo';
-import type { TirePressureLog, Vehicle } from '../models';
+import type { TireWearLog, Vehicle } from '../models';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'TirePressureHistory'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'TireWearHistory'>;
 
-export default function TirePressureHistoryScreen({ route }: Props) {
+export default function TireWearHistoryScreen({ route }: Props) {
   const { vehicleId } = route.params;
-  const [logs, setLogs] = React.useState<TirePressureLog[]>([]);
+  const [logs, setLogs] = React.useState<TireWearLog[]>([]);
   const [vehicle, setVehicle] = React.useState<Vehicle | undefined>(undefined);
 
   React.useEffect(() => {
     const load = async () => {
       try {
         const [list, v] = await Promise.all([
-          repo.listTirePressureLogs(vehicleId),
+          repo.listTireWearLogs(vehicleId),
           repo.getVehicle(vehicleId),
         ]);
         setLogs(list);
@@ -47,7 +47,7 @@ export default function TirePressureHistoryScreen({ route }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.hint}>Histórico de presión de neumáticos{vehicle ? ` · ${vehicle.make} ${vehicle.model}` : ''}</Text>
+      <Text style={styles.hint}>Histórico de desgaste de neumáticos{vehicle ? ` · ${vehicle.make} ${vehicle.model}` : ''}</Text>
       <View style={styles.table}>
         {renderHeader()}
         <FlatList
@@ -70,7 +70,7 @@ export default function TirePressureHistoryScreen({ route }: Props) {
 }
 
 function num(n?: number) {
-  return typeof n === 'number' && isFinite(n) ? `${n.toFixed(1)} bar` : '-';
+  return typeof n === 'number' && isFinite(n) ? `${n.toFixed(1)} mm` : '-';
 }
 function formatDay(iso: string) {
   try {
@@ -95,4 +95,3 @@ const styles = StyleSheet.create({
   headerCell: { color: '#9CA3AF', fontWeight: '600' },
   empty: { color: '#6B7280', padding: 12 },
 });
-

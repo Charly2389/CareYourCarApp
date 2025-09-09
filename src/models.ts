@@ -61,3 +61,14 @@ export interface UserProfile {
   email?: string;
   createdAt: string; // ISO date
 }
+
+// Log of tyre wear measurements per wheel (mm of tread depth)
+export interface TireWearLog {
+  id: string;
+  vehicleId: string;
+  date: string; // ISO date
+  fl?: number; // Front Left
+  fr?: number; // Front Right
+  rl?: number; // Rear Left
+  rr?: number; // Rear Right
+}

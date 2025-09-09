@@ -1,4 +1,4 @@
-import { MaintenanceRecord, Vehicle, TirePressureLog } from '../models';
+import { MaintenanceRecord, Vehicle, TirePressureLog, TireWearLog } from '../models';
 // Use legacy API for broader compatibility and simpler types
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -21,12 +21,17 @@ export interface Repo {
   // Tire pressure logs
   addTirePressureLog(log: TirePressureLog): Promise<void>;
   listTirePressureLogs(vehicleId: string): Promise<TirePressureLog[]>;
+
+  // Tire wear logs
+  addTireWearLog(log: TireWearLog): Promise<void>;
+  listTireWearLogs(vehicleId: string): Promise<TireWearLog[]>;
 }
 
 export class InMemoryRepo implements Repo {
   private vehicles = new Map<string, Vehicle>();
   private maintenance = new Map<string, MaintenanceRecord>();
   private pressureLogs: TirePressureLog[] = [];
+  private wearLogs: TireWearLog[] = [];
 
   async listVehicles(): Promise<Vehicle[]> {
     return Array.from(this.vehicles.values()).sort((a, b) => a.make.localeCompare(b.make));
@@ -60,6 +65,13 @@ export class InMemoryRepo implements Repo {
   }
   async listTirePressureLogs(vehicleId: string): Promise<TirePressureLog[]> {
     return this.pressureLogs.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async addTireWearLog(log: TireWearLog): Promise<void> {
+    const idx = this.wearLogs.findIndex((x) => x.id === log.id);
+    if (idx >= 0) this.wearLogs[idx] = log; else this.wearLogs.push(log);
+  }
+  async listTireWearLogs(vehicleId: string): Promise<TireWearLog[]> {
+    return this.wearLogs.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
   }
 }
 
@@ -96,6 +108,12 @@ class SQLiteRepo implements Repo {
       ],
       ['CREATE INDEX IF NOT EXISTS idx_tpl_vehicle ON tire_pressure_logs(vehicleId);', []],
       ['CREATE INDEX IF NOT EXISTS idx_tpl_date ON tire_pressure_logs(date);', []],
+      [
+        'CREATE TABLE IF NOT EXISTS tire_wear_logs (\n          id TEXT PRIMARY KEY NOT NULL,\n          vehicleId TEXT NOT NULL,\n          date TEXT NOT NULL,\n          fl REAL,\n          fr REAL,\n          rl REAL,\n          rr REAL,\n          FOREIGN KEY(vehicleId) REFERENCES vehicles(id) ON DELETE CASCADE\n        );',
+        [],
+      ],
+      ['CREATE INDEX IF NOT EXISTS idx_twl_vehicle ON tire_wear_logs(vehicleId);', []],
+      ['CREATE INDEX IF NOT EXISTS idx_twl_date ON tire_wear_logs(date);', []],
     ]);
     // Lightweight migrations: ensure new columns exist
     try {
@@ -243,6 +261,21 @@ class SQLiteRepo implements Repo {
     for (let i = 0; i < res.rows.length; i++) out.push(res.rows.item(i) as TirePressureLog);
     return out;
   }
+  async addTireWearLog(log: TireWearLog): Promise<void> {
+    await this.init();
+    await this.exec(
+      `INSERT OR REPLACE INTO tire_wear_logs (id, vehicleId, date, fl, fr, rl, rr)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [log.id, log.vehicleId, log.date, log.fl ?? null, log.fr ?? null, log.rl ?? null, log.rr ?? null]
+    );
+  }
+  async listTireWearLogs(vehicleId: string): Promise<TireWearLog[]> {
+    await this.init();
+    const res = await this.exec('SELECT * FROM tire_wear_logs WHERE vehicleId = ? ORDER BY date DESC', [vehicleId]);
+    const out: TireWearLog[] = [];
+    for (let i = 0; i < res.rows.length; i++) out.push(res.rows.item(i) as TireWearLog);
+    return out;
+  }
 }
 
 // --- AsyncStorage implementation (for web or fallback) ---
@@ -250,6 +283,7 @@ class AsyncStorageRepo implements Repo {
   private VKEY = 'cyc/vehicles';
   private MKEY = 'cyc/maintenance';
   private TPLKEY = 'cyc/tire_pressure_logs';
+  private TWLKEY = 'cyc/tire_wear_logs';
 
   private async loadVehicles(): Promise<Vehicle[]> {
     try {
@@ -283,6 +317,17 @@ class AsyncStorageRepo implements Repo {
   }
   private async saveTPL(list: TirePressureLog[]): Promise<void> {
     try { await AsyncStorage.setItem(this.TPLKEY, JSON.stringify(list)); } catch {}
+  }
+  private async loadTWL(): Promise<TireWearLog[]> {
+    try {
+      const raw = await AsyncStorage.getItem(this.TWLKEY);
+      return raw ? (JSON.parse(raw) as TireWearLog[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  private async saveTWL(list: TireWearLog[]): Promise<void> {
+    try { await AsyncStorage.setItem(this.TWLKEY, JSON.stringify(list)); } catch {}
   }
 
   async listVehicles(): Promise<Vehicle[]> {
@@ -327,6 +372,16 @@ class AsyncStorageRepo implements Repo {
   }
   async listTirePressureLogs(vehicleId: string): Promise<TirePressureLog[]> {
     const list = await this.loadTPL();
+    return list.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async addTireWearLog(log: TireWearLog): Promise<void> {
+    const list = await this.loadTWL();
+    const idx = list.findIndex((x) => x.id === log.id);
+    if (idx >= 0) list[idx] = log; else list.unshift(log);
+    await this.saveTWL(list);
+  }
+  async listTireWearLogs(vehicleId: string): Promise<TireWearLog[]> {
+    const list = await this.loadTWL();
     return list.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
   }
 }

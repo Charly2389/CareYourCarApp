@@ -18,6 +18,7 @@ import { checkKmReminderOnAppOpen } from './src/services/reminders/kmUpdate';
 import UpdateMileageScreen from './src/screens/UpdateMileageScreen';
 import MaintenanceCategoryScreen from './src/screens/MaintenanceCategoryScreen';
 import TirePressureHistoryScreen from './src/screens/TirePressureHistoryScreen';
+import TireWearHistoryScreen from './src/screens/TireWearHistoryScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -30,6 +31,7 @@ export type RootStackParamList = {
   UpdateMileage: { inboxId?: string; vehicleId?: string } | undefined;
   MaintenanceCategory: { vehicleId: string; category: string };
   TirePressureHistory: { vehicleId: string };
+  TireWearHistory: { vehicleId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -92,6 +94,7 @@ export default function App() {
           <Stack.Screen name="UpdateMileage" component={UpdateMileageScreen} options={{ title: 'Actualizar km' }} />
           <Stack.Screen name="MaintenanceCategory" component={MaintenanceCategoryScreen} options={{ title: 'Mantenimiento' }} />
           <Stack.Screen name="TirePressureHistory" component={TirePressureHistoryScreen} options={{ title: 'Histórico presiones' }} />
+          <Stack.Screen name="TireWearHistory" component={TireWearHistoryScreen} options={{ title: 'Historico desgaste' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
