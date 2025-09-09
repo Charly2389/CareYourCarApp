@@ -14,6 +14,8 @@ export interface Vehicle {
   // Recommended tyre pressures (bar)
   tirePressureFrontBar?: number;
   tirePressureRearBar?: number;
+  // Current tyre size specification (e.g., 205/55 R16 91V)
+  tireSizeSpec?: string;
   // Local URI to a photo stored on device or cache
   photoUri?: string;
   createdAt: string; // ISO date
@@ -71,4 +73,21 @@ export interface TireWearLog {
   fr?: number; // Front Right
   rl?: number; // Rear Left
   rr?: number; // Rear Right
+}
+
+// Log of tyre rotation (cross) with current mileage
+export interface TireRotationLog {
+  id: string;
+  vehicleId: string;
+  date: string; // ISO date
+  mileage: number; // km at rotation
+}
+
+// Log of tyre replacement with mileage and tyre type
+export interface TireReplacementLog {
+  id: string;
+  vehicleId: string;
+  date: string; // ISO date
+  mileage: number; // km at replacement
+  tireType?: string; // e.g., 205/55 R16 91V
 }

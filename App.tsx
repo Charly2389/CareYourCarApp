@@ -19,6 +19,8 @@ import UpdateMileageScreen from './src/screens/UpdateMileageScreen';
 import MaintenanceCategoryScreen from './src/screens/MaintenanceCategoryScreen';
 import TirePressureHistoryScreen from './src/screens/TirePressureHistoryScreen';
 import TireWearHistoryScreen from './src/screens/TireWearHistoryScreen';
+import TireRotationHistoryScreen from './src/screens/TireRotationHistoryScreen';
+import TireReplacementHistoryScreen from './src/screens/TireReplacementHistoryScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -32,6 +34,8 @@ export type RootStackParamList = {
   MaintenanceCategory: { vehicleId: string; category: string };
   TirePressureHistory: { vehicleId: string };
   TireWearHistory: { vehicleId: string };
+  TireRotationHistory: { vehicleId: string };
+  TireReplacementHistory: { vehicleId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -95,6 +99,8 @@ export default function App() {
           <Stack.Screen name="MaintenanceCategory" component={MaintenanceCategoryScreen} options={{ title: 'Mantenimiento' }} />
           <Stack.Screen name="TirePressureHistory" component={TirePressureHistoryScreen} options={{ title: 'Histórico presiones' }} />
           <Stack.Screen name="TireWearHistory" component={TireWearHistoryScreen} options={{ title: 'Historico desgaste' }} />
+          <Stack.Screen name="TireRotationHistory" component={TireRotationHistoryScreen} options={{ title: 'Histórico cruce neumáticos' }} />
+          <Stack.Screen name="TireReplacementHistory" component={TireReplacementHistoryScreen} options={{ title: 'Histórico sustitución neumáticos' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

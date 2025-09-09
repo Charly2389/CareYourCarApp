@@ -13,16 +13,123 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const { vehicleId } = route.params;
   const [vehicle, setVehicle] = useState<Vehicle | undefined>();
   const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>([]);
+  type MaintEvent = {
+    id: string;
+    date: string; // ISO
+    category: string;
+    subcategory: string;
+    mileage?: number;
+    cost?: number;
+    extra?: string;
+  };
+  const [events, setEvents] = useState<MaintEvent[]>([]);
   const [tab, setTab] = useState<'repostajes' | 'mantenimiento' | 'reparaciones'>('mantenimiento');
   const [editingFirstReg, setEditingFirstReg] = useState(false);
   const [firstRegDraft, setFirstRegDraft] = useState('');
 
   useEffect(() => {
     const refresh = async () => {
-      const v = await repo.getVehicle(vehicleId);
-      const m = await repo.listMaintenance(vehicleId);
-      setVehicle(v);
-      setMaintenance(m);
+      const [v, m, rot, repl, tpl, twl] = await Promise.all([
+        repo.getVehicle(vehicleId),
+        repo.listMaintenance(vehicleId),
+        repo.listTireRotationLogs(vehicleId).catch(() => []),
+        repo.listTireReplacementLogs(vehicleId).catch(() => []),
+        repo.listTirePressureLogs(vehicleId).catch(() => []),
+        repo.listTireWearLogs(vehicleId).catch(() => []),
+      ]);
+      setVehicle(v!);
+      const typeLabel: Record<string, string> = {
+        aceite: 'Aceite',
+        neumaticos: 'Neumáticos',
+        filtro_aire: 'Filtro de aire',
+        filtro_habitaculo: 'Filtro de habitáculo',
+        correa_distribucion: 'Correa distribución',
+        frenos: 'Frenos',
+        bateria: 'Batería',
+        itv: 'ITV',
+        otros: 'Otros',
+      };
+      // Combine maintenance records with tyre events as synthetic records for the list
+      const rotAsMaint = rot.map((r: any) => ({
+        id: `rot-${r.id}`,
+        vehicleId: vehicleId,
+        type: 'neumaticos' as any,
+        date: r.date,
+        mileageAtService: r.mileage ?? 0,
+        createdAt: r.date,
+        notes: 'Cruce de neumáticos',
+      } as MaintenanceRecord));
+      const replAsMaint = repl.map((r: any) => ({
+        id: `repl-${r.id}`,
+        vehicleId: vehicleId,
+        type: 'neumaticos' as any,
+        date: r.date,
+        mileageAtService: r.mileage ?? 0,
+        createdAt: r.date,
+        notes: r.tireType ? `Sustitución: ${r.tireType}` : 'Sustitución de neumáticos',
+      } as MaintenanceRecord));
+      const combined = [...m, ...rotAsMaint, ...replAsMaint].sort((a, b) => b.date.localeCompare(a.date));
+      setMaintenance(combined);
+
+      // Also build unified event list including pressure and wear
+      const maintEvents: MaintEvent[] = m.map((r) => ({
+        id: (r as any).id,
+        date: (r as any).date,
+        category: typeLabel[(r as any).type] ?? (r as any).type,
+        subcategory: 'Mantenimiento',
+        mileage: (r as any).mileageAtService,
+        cost: (r as any).cost,
+        extra: (r as any).notes || undefined,
+      }));
+      const rotEvents: MaintEvent[] = (rot as any[]).map((r) => ({
+        id: `rot-${r.id}`,
+        date: r.date,
+        category: 'Neumáticos',
+        subcategory: 'Cruce de neumáticos',
+        mileage: r.mileage,
+      }));
+      const replEvents: MaintEvent[] = (repl as any[]).map((r) => ({
+        id: `repl-${r.id}`,
+        date: r.date,
+        category: 'Neumáticos',
+        subcategory: 'Sustitución de neumáticos',
+        mileage: r.mileage,
+        extra: r.tireType,
+      }));
+      const pressureEvents: MaintEvent[] = (tpl as any[]).map((r) => {
+        const fmt = (n?: number) => (typeof n === 'number' && isFinite(n) ? n.toFixed(1) : undefined);
+        const parts = [
+          fmt(r.fl) ? `FL ${fmt(r.fl)} bar` : null,
+          fmt(r.fr) ? `FR ${fmt(r.fr)} bar` : null,
+          fmt(r.rl) ? `RL ${fmt(r.rl)} bar` : null,
+          fmt(r.rr) ? `RR ${fmt(r.rr)} bar` : null,
+        ].filter(Boolean);
+        return {
+          id: `press-${r.id}`,
+          date: r.date,
+          category: 'Neumáticos',
+          subcategory: 'Presión de neumáticos',
+          extra: (parts as string[]).join(', '),
+        } as MaintEvent;
+      });
+      const wearEvents: MaintEvent[] = (twl as any[]).map((r) => {
+        const fmt = (n?: number) => (typeof n === 'number' && isFinite(n) ? n.toFixed(1) : undefined);
+        const parts = [
+          fmt(r.fl) ? `FL ${fmt(r.fl)} mm` : null,
+          fmt(r.fr) ? `FR ${fmt(r.fr)} mm` : null,
+          fmt(r.rl) ? `RL ${fmt(r.rl)} mm` : null,
+          fmt(r.rr) ? `RR ${fmt(r.rr)} mm` : null,
+        ].filter(Boolean);
+        return {
+          id: `wear-${r.id}`,
+          date: r.date,
+          category: 'Neumáticos',
+          subcategory: 'Desgaste de neumáticos',
+          extra: (parts as string[]).join(', '),
+        } as MaintEvent;
+      });
+      const all = [...maintEvents, ...rotEvents, ...replEvents, ...pressureEvents, ...wearEvents].sort((a, b) => b.date.localeCompare(a.date));
+      setEvents(all);
     };
     const unsub = navigation.addListener('focus', refresh);
     refresh();
@@ -118,14 +225,15 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
             <PlusButton size={40} accessibilityLabel="Añadir mantenimiento" onPress={() => navigation.navigate('AddMaintenance', { vehicleId })} />
           </View>
           <FlatList
-            data={maintenance}
+            data={events}
             keyExtractor={(item) => item.id}
             ListEmptyComponent={<Text style={{ color: '#9CA3AF' }}>Sin registros todavía.</Text>}
             renderItem={({ item }) => (
               <View style={styles.row}>
-                <Text style={styles.rowTitle}>{capitalize(item.type)}</Text>
-                <Text style={styles.rowSub}>{new Date(item.date).toLocaleDateString()} · {item.mileageAtService.toLocaleString()} km</Text>
-                {item.cost ? <Text style={styles.rowCost}>{item.cost.toFixed(2)} €</Text> : null}
+                <Text style={styles.rowTitle}>{item.category + (item.subcategory ? (' - ' + item.subcategory) : '')}</Text>
+                <Text style={styles.rowSub}>{new Date(item.date).toLocaleDateString()} {item.mileage != null ? (' - ' + item.mileage.toLocaleString() + ' km') : ''}</Text>
+                {item.extra ? <Text style={styles.rowSub}>{item.extra}</Text> : null}
+                {typeof item.cost === 'number' ? <Text style={styles.rowCost}>{item.cost.toFixed(2)} EUR</Text> : null}
               </View>
             )}
             contentContainerStyle={{ paddingBottom: 24 }}
@@ -166,3 +274,4 @@ const styles = StyleSheet.create({
   segmentText: { color: '#9CA3AF', fontSize: 12 },
   segmentTextActive: { color: '#E5E7EB', fontWeight: '600' },
 });
+

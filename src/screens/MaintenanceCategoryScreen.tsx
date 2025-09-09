@@ -5,7 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { repo } from '../repository/Repo';
 import { uuid } from '../utils/uuid';
-import type { TirePressureLog } from '../models';
+import type { TirePressureLog, TireRotationLog, TireReplacementLog } from '../models';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MaintenanceCategory'>;
 
@@ -30,6 +30,9 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
   const [editingWearWheel, setEditingWearWheel] = React.useState<'FL'|'FR'|'RL'|'RR'|null>(null);
   const [warn, setWarn] = React.useState<{ FL: boolean; FR: boolean; RL: boolean; RR: boolean }>({ FL: false, FR: false, RL: false, RR: false });
   const [canvas, setCanvas] = React.useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [rotationKm, setRotationKm] = React.useState<string>('');
+  const [replacementKm, setReplacementKm] = React.useState<string>('');
+  const [tireType, setTireType] = React.useState<string>('');
 
   React.useEffect(() => {
     (async () => {
@@ -37,6 +40,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         const v = await repo.getVehicle(vehicleId);
         if (v?.tirePressureFrontBar) setRecFront(String(v.tirePressureFrontBar));
         if (v?.tirePressureRearBar) setRecRear(String(v.tirePressureRearBar));
+        if (v?.tireSizeSpec) setTireType(v.tireSizeSpec);
       } catch {}
     })();
   }, [vehicleId]);
@@ -92,6 +96,237 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
               <Text style={styles.itemText}>{name}</Text>
             </TouchableOpacity>
           ))}
+        </View>
+      );
+    }
+    if (sub === 'Sustitucion Neumaticos') {
+      return (
+        <View style={{ marginTop: 12 }}>
+          <Text style={styles.sub}>Registra la sustitución de neumáticos y el tipo montado.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+            <Text style={[styles.sub, { marginRight: 8 }]}>Kilómetros actuales</Text>
+            <TextInput
+              value={replacementKm}
+              onChangeText={setReplacementKm}
+              keyboardType='numeric'
+              style={[styles.editInputSmall, { minWidth: 96 }]}
+              placeholder='Ej: 68500'
+              placeholderTextColor="#6B7280"
+            />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+            <Text style={[styles.sub, { marginRight: 8 }]}>Tipo de neumático</Text>
+            <TextInput
+              value={tireType}
+              onChangeText={setTireType}
+              keyboardType='default'
+              style={[styles.editInputSmall, { minWidth: 160 }]}
+              placeholder='Ej: 205/55 R16 91V'
+              placeholderTextColor="#6B7280"
+              autoCapitalize='characters'
+            />
+          </View>
+          <View style={{ flexDirection: 'row', marginTop: 12 }}>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={async () => {
+                const km = Number(replacementKm.replace(/[^0-9.]/g, ''));
+                if (!isFinite(km)) return;
+                const log: TireReplacementLog = {
+                  id: uuid(),
+                  vehicleId,
+                  date: new Date().toISOString(),
+                  mileage: Math.round(km),
+                  tireType: tireType?.trim() || undefined,
+                };
+                try {
+                  await repo.addTireReplacementLog(log);
+                  if (tireType?.trim()) {
+                    const v = await repo.getVehicle(vehicleId);
+                    if (v) { v.tireSizeSpec = tireType.trim(); await repo.upsertVehicle(v); }
+                  }
+                } catch {}
+                setReplacementKm('');
+              }}
+              style={[styles.backBtn, { backgroundColor: '#10B98122', borderColor: '#10B98155', marginRight: 12 }]}
+            >
+              <Text style={[styles.backText, { color: '#A7F3D0' }]}>Registrar Sustitución de neumáticos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={() => navigation.navigate('TireReplacementHistory', { vehicleId })}
+              style={[styles.backBtn, { backgroundColor: '#111827' }]}
+            >
+              <Text style={styles.backText}>Consultar histórico</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={() => setSub(null)} style={[styles.backBtn, { alignSelf: 'flex-start', marginTop: 12 }]}>
+            <Text style={styles.backText}>Atrás</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    if (sub === 'Cruce Neumaticos') {
+      return (
+        <View style={{ marginTop: 12 }}>
+          <Text style={styles.sub}>Registra el cruce de neumáticos para llevar control del mantenimiento.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+            <Text style={[styles.sub, { marginRight: 8 }]}>Kilómetros actuales</Text>
+            <TextInput
+              value={rotationKm}
+              onChangeText={setRotationKm}
+              keyboardType='numeric'
+              style={[styles.editInputSmall, { minWidth: 96 }]}
+              placeholder='Ej: 68500'
+              placeholderTextColor="#6B7280"
+            />
+          </View>
+          <View style={{ flexDirection: 'row', marginTop: 12 }}>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={async () => {
+                const km = Number(rotationKm.replace(/[^0-9.]/g, ''));
+                if (!isFinite(km)) return;
+                const log: TireRotationLog = {
+                  id: uuid(),
+                  vehicleId,
+                  date: new Date().toISOString(),
+                  mileage: Math.round(km),
+                };
+                try { await repo.addTireRotationLog(log); } catch {}
+                setRotationKm('');
+              }}
+              style={[styles.backBtn, { backgroundColor: '#10B98122', borderColor: '#10B98155', marginRight: 12 }]}
+            >
+              <Text style={[styles.backText, { color: '#A7F3D0' }]}>Registrar Cruce de neumáticos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={() => navigation.navigate('TireRotationHistory', { vehicleId })}
+              style={[styles.backBtn, { backgroundColor: '#111827' }]}
+            >
+              <Text style={styles.backText}>Consultar histórico</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={() => setSub(null)} style={[styles.backBtn, { alignSelf: 'flex-start', marginTop: 12 }]}>
+            <Text style={styles.backText}>Atrás</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    if (sub === 'Sustitucion Neumaticos') {
+      return (
+        <View style={{ marginTop: 12 }}>
+          <Text style={styles.sub}>Registra la sustitución de neumáticos y el tipo montado.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+            <Text style={[styles.sub, { marginRight: 8 }]}>Kilómetros actuales</Text>
+            <TextInput
+              value={replacementKm}
+              onChangeText={setReplacementKm}
+              keyboardType='numeric'
+              style={[styles.editInputSmall, { minWidth: 96 }]}
+              placeholder='Ej: 68500'
+              placeholderTextColor="#6B7280"
+            />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+            <Text style={[styles.sub, { marginRight: 8 }]}>Tipo de neumático</Text>
+            <TextInput
+              value={tireType}
+              onChangeText={setTireType}
+              keyboardType='default'
+              style={[styles.editInputSmall, { minWidth: 160 }]}
+              placeholder='Ej: 205/55 R16 91V'
+              placeholderTextColor="#6B7280"
+              autoCapitalize='characters'
+            />
+          </View>
+          <View style={{ flexDirection: 'row', marginTop: 12 }}>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={async () => {
+                const km = Number(replacementKm.replace(/[^0-9.]/g, ''));
+                if (!isFinite(km)) return;
+                const log: TireReplacementLog = {
+                  id: uuid(),
+                  vehicleId,
+                  date: new Date().toISOString(),
+                  mileage: Math.round(km),
+                  tireType: tireType?.trim() || undefined,
+                };
+                try {
+                  await repo.addTireReplacementLog(log);
+                  // Save tire type on vehicle too
+                  if (tireType?.trim()) {
+                    const v = await repo.getVehicle(vehicleId);
+                    if (v) { v.tireSizeSpec = tireType.trim(); await repo.upsertVehicle(v); }
+                  }
+                } catch {}
+                setReplacementKm('');
+              }}
+              style={[styles.backBtn, { backgroundColor: '#10B98122', borderColor: '#10B98155', marginRight: 12 }]}
+            >
+              <Text style={[styles.backText, { color: '#A7F3D0' }]}>Registrar Sustitución de neumáticos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={() => navigation.navigate('TireReplacementHistory', { vehicleId })}
+              style={[styles.backBtn, { backgroundColor: '#111827' }]}
+            >
+              <Text style={styles.backText}>Consultar histórico</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={() => setSub(null)} style={[styles.backBtn, { alignSelf: 'flex-start', marginTop: 12 }]}>
+            <Text style={styles.backText}>Atrás</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    if (sub === 'Cruce Neumaticos') {
+      return (
+        <View style={{ marginTop: 12 }}>
+          <Text style={styles.sub}>Registra el cruce de neumáticos para llevar control del mantenimiento.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+            <Text style={[styles.sub, { marginRight: 8 }]}>Kilómetros actuales</Text>
+            <TextInput
+              value={rotationKm}
+              onChangeText={setRotationKm}
+              keyboardType='numeric'
+              style={[styles.editInputSmall, { minWidth: 96 }]}
+              placeholder='Ej: 68500'
+              placeholderTextColor="#6B7280"
+            />
+          </View>
+          <View style={{ flexDirection: 'row', marginTop: 12 }}>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={async () => {
+                const km = Number(rotationKm.replace(/[^0-9.]/g, ''));
+                if (!isFinite(km)) return;
+                const log: TireRotationLog = {
+                  id: uuid(),
+                  vehicleId,
+                  date: new Date().toISOString(),
+                  mileage: Math.round(km),
+                };
+                try { await repo.addTireRotationLog(log); } catch {}
+                setRotationKm('');
+              }}
+              style={[styles.backBtn, { backgroundColor: '#10B98122', borderColor: '#10B98155', marginRight: 12 }]}
+            >
+              <Text style={[styles.backText, { color: '#A7F3D0' }]}>Registrar Cruce de neumáticos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole='button'
+              onPress={() => navigation.navigate('TireRotationHistory', { vehicleId })}
+              style={[styles.backBtn, { backgroundColor: '#111827' }]}
+            >
+              <Text style={styles.backText}>Consultar histórico</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={() => setSub(null)} style={[styles.backBtn, { alignSelf: 'flex-start', marginTop: 12 }]}>
+            <Text style={styles.backText}>Atrás</Text>
+          </TouchableOpacity>
         </View>
       );
     }

@@ -1,4 +1,4 @@
-import { MaintenanceRecord, Vehicle, TirePressureLog, TireWearLog } from '../models';
+import { MaintenanceRecord, Vehicle, TirePressureLog, TireWearLog, TireRotationLog, TireReplacementLog } from '../models';
 // Use legacy API for broader compatibility and simpler types
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -25,6 +25,14 @@ export interface Repo {
   // Tire wear logs
   addTireWearLog(log: TireWearLog): Promise<void>;
   listTireWearLogs(vehicleId: string): Promise<TireWearLog[]>;
+
+  // Tire rotation logs
+  addTireRotationLog(log: TireRotationLog): Promise<void>;
+  listTireRotationLogs(vehicleId: string): Promise<TireRotationLog[]>;
+
+  // Tire replacement logs
+  addTireReplacementLog(log: TireReplacementLog): Promise<void>;
+  listTireReplacementLogs(vehicleId: string): Promise<TireReplacementLog[]>;
 }
 
 export class InMemoryRepo implements Repo {
@@ -32,6 +40,8 @@ export class InMemoryRepo implements Repo {
   private maintenance = new Map<string, MaintenanceRecord>();
   private pressureLogs: TirePressureLog[] = [];
   private wearLogs: TireWearLog[] = [];
+  private rotationLogs: TireRotationLog[] = [];
+  private replacementLogs: TireReplacementLog[] = [];
 
   async listVehicles(): Promise<Vehicle[]> {
     return Array.from(this.vehicles.values()).sort((a, b) => a.make.localeCompare(b.make));
@@ -73,6 +83,20 @@ export class InMemoryRepo implements Repo {
   async listTireWearLogs(vehicleId: string): Promise<TireWearLog[]> {
     return this.wearLogs.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
   }
+  async addTireRotationLog(log: TireRotationLog): Promise<void> {
+    const idx = this.rotationLogs.findIndex((x) => x.id === log.id);
+    if (idx >= 0) this.rotationLogs[idx] = log; else this.rotationLogs.push(log);
+  }
+  async listTireRotationLogs(vehicleId: string): Promise<TireRotationLog[]> {
+    return this.rotationLogs.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async addTireReplacementLog(log: TireReplacementLog): Promise<void> {
+    const idx = this.replacementLogs.findIndex((x) => x.id === log.id);
+    if (idx >= 0) this.replacementLogs[idx] = log; else this.replacementLogs.push(log);
+  }
+  async listTireReplacementLogs(vehicleId: string): Promise<TireReplacementLog[]> {
+    return this.replacementLogs.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
+  }
 }
 
 // --- SQLite implementation ---
@@ -92,7 +116,7 @@ class SQLiteRepo implements Repo {
     await this.execBatch([
       ['PRAGMA foreign_keys = ON;', []],
       [
-        'CREATE TABLE IF NOT EXISTS vehicles (\n          id TEXT PRIMARY KEY NOT NULL,\n          make TEXT NOT NULL,\n          model TEXT NOT NULL,\n          year INTEGER NOT NULL,\n          firstRegistrationYear INTEGER,\n          plate TEXT,\n          vin TEXT,\n          mileage INTEGER NOT NULL,\n          fuelType TEXT NOT NULL,\n          photoUri TEXT,\n          tirePressureFrontBar REAL,\n          tirePressureRearBar REAL,\n          createdAt TEXT NOT NULL\n        );',
+        'CREATE TABLE IF NOT EXISTS vehicles (\n          id TEXT PRIMARY KEY NOT NULL,\n          make TEXT NOT NULL,\n          model TEXT NOT NULL,\n          year INTEGER NOT NULL,\n          firstRegistrationYear INTEGER,\n          plate TEXT,\n          vin TEXT,\n          mileage INTEGER NOT NULL,\n          fuelType TEXT NOT NULL,\n          photoUri TEXT,\n          tireSizeSpec TEXT,\n          tirePressureFrontBar REAL,\n          tirePressureRearBar REAL,\n          createdAt TEXT NOT NULL\n        );',
         [],
       ],
       [
@@ -114,6 +138,18 @@ class SQLiteRepo implements Repo {
       ],
       ['CREATE INDEX IF NOT EXISTS idx_twl_vehicle ON tire_wear_logs(vehicleId);', []],
       ['CREATE INDEX IF NOT EXISTS idx_twl_date ON tire_wear_logs(date);', []],
+      [
+        'CREATE TABLE IF NOT EXISTS tire_rotation_logs (\n          id TEXT PRIMARY KEY NOT NULL,\n          vehicleId TEXT NOT NULL,\n          date TEXT NOT NULL,\n          mileage INTEGER NOT NULL,\n          FOREIGN KEY(vehicleId) REFERENCES vehicles(id) ON DELETE CASCADE\n        );',
+        [],
+      ],
+      ['CREATE INDEX IF NOT EXISTS idx_trl_vehicle ON tire_rotation_logs(vehicleId);', []],
+      ['CREATE INDEX IF NOT EXISTS idx_trl_date ON tire_rotation_logs(date);', []],
+      [
+        'CREATE TABLE IF NOT EXISTS tire_replacement_logs (\n          id TEXT PRIMARY KEY NOT NULL,\n          vehicleId TEXT NOT NULL,\n          date TEXT NOT NULL,\n          mileage INTEGER NOT NULL,\n          tireType TEXT,\n          FOREIGN KEY(vehicleId) REFERENCES vehicles(id) ON DELETE CASCADE\n        );',
+        [],
+      ],
+      ['CREATE INDEX IF NOT EXISTS idx_trepl_vehicle ON tire_replacement_logs(vehicleId);', []],
+      ['CREATE INDEX IF NOT EXISTS idx_trepl_date ON tire_replacement_logs(date);', []],
     ]);
     // Lightweight migrations: ensure new columns exist
     try {
@@ -122,12 +158,14 @@ class SQLiteRepo implements Repo {
       let hasFirstReg = false;
       let hasTireFront = false;
       let hasTireRear = false;
+      let hasTireSizeSpec = false;
       for (let i = 0; i < info.rows.length; i++) {
         const row = info.rows.item(i) as any;
         if (row.name === 'photoUri') { hasPhoto = true; }
         if (row.name === 'firstRegistrationYear') { hasFirstReg = true; }
         if (row.name === 'tirePressureFrontBar') { hasTireFront = true; }
         if (row.name === 'tirePressureRearBar') { hasTireRear = true; }
+        if (row.name === 'tireSizeSpec') { hasTireSizeSpec = true; }
       }
       if (!hasPhoto) {
         await this.exec('ALTER TABLE vehicles ADD COLUMN photoUri TEXT');
@@ -140,6 +178,9 @@ class SQLiteRepo implements Repo {
       }
       if (!hasTireRear) {
         await this.exec('ALTER TABLE vehicles ADD COLUMN tirePressureRearBar REAL');
+      }
+      if (!hasTireSizeSpec) {
+        await this.exec('ALTER TABLE vehicles ADD COLUMN tireSizeSpec TEXT');
       }
     } catch { /* ignore */ }
     this.initialized = true;
@@ -276,6 +317,36 @@ class SQLiteRepo implements Repo {
     for (let i = 0; i < res.rows.length; i++) out.push(res.rows.item(i) as TireWearLog);
     return out;
   }
+  async addTireRotationLog(log: TireRotationLog): Promise<void> {
+    await this.init();
+    await this.exec(
+      `INSERT OR REPLACE INTO tire_rotation_logs (id, vehicleId, date, mileage)
+       VALUES (?, ?, ?, ?)`,
+      [log.id, log.vehicleId, log.date, log.mileage]
+    );
+  }
+  async listTireRotationLogs(vehicleId: string): Promise<TireRotationLog[]> {
+    await this.init();
+    const res = await this.exec('SELECT * FROM tire_rotation_logs WHERE vehicleId = ? ORDER BY date DESC', [vehicleId]);
+    const out: TireRotationLog[] = [];
+    for (let i = 0; i < res.rows.length; i++) out.push(res.rows.item(i) as TireRotationLog);
+    return out;
+  }
+  async addTireReplacementLog(log: TireReplacementLog): Promise<void> {
+    await this.init();
+    await this.exec(
+      `INSERT OR REPLACE INTO tire_replacement_logs (id, vehicleId, date, mileage, tireType)
+       VALUES (?, ?, ?, ?, ?)`,
+      [log.id, log.vehicleId, log.date, log.mileage, log.tireType ?? null]
+    );
+  }
+  async listTireReplacementLogs(vehicleId: string): Promise<TireReplacementLog[]> {
+    await this.init();
+    const res = await this.exec('SELECT * FROM tire_replacement_logs WHERE vehicleId = ? ORDER BY date DESC', [vehicleId]);
+    const out: TireReplacementLog[] = [];
+    for (let i = 0; i < res.rows.length; i++) out.push(res.rows.item(i) as TireReplacementLog);
+    return out;
+  }
 }
 
 // --- AsyncStorage implementation (for web or fallback) ---
@@ -284,6 +355,8 @@ class AsyncStorageRepo implements Repo {
   private MKEY = 'cyc/maintenance';
   private TPLKEY = 'cyc/tire_pressure_logs';
   private TWLKEY = 'cyc/tire_wear_logs';
+  private TRLKEY = 'cyc/tire_rotation_logs';
+  private TRPLKEY = 'cyc/tire_replacement_logs';
 
   private async loadVehicles(): Promise<Vehicle[]> {
     try {
@@ -328,6 +401,28 @@ class AsyncStorageRepo implements Repo {
   }
   private async saveTWL(list: TireWearLog[]): Promise<void> {
     try { await AsyncStorage.setItem(this.TWLKEY, JSON.stringify(list)); } catch {}
+  }
+  private async loadTRL(): Promise<TireRotationLog[]> {
+    try {
+      const raw = await AsyncStorage.getItem(this.TRLKEY);
+      return raw ? (JSON.parse(raw) as TireRotationLog[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  private async saveTRL(list: TireRotationLog[]): Promise<void> {
+    try { await AsyncStorage.setItem(this.TRLKEY, JSON.stringify(list)); } catch {}
+  }
+  private async loadTRPL(): Promise<TireReplacementLog[]> {
+    try {
+      const raw = await AsyncStorage.getItem(this.TRPLKEY);
+      return raw ? (JSON.parse(raw) as TireReplacementLog[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  private async saveTRPL(list: TireReplacementLog[]): Promise<void> {
+    try { await AsyncStorage.setItem(this.TRPLKEY, JSON.stringify(list)); } catch {}
   }
 
   async listVehicles(): Promise<Vehicle[]> {
@@ -382,6 +477,26 @@ class AsyncStorageRepo implements Repo {
   }
   async listTireWearLogs(vehicleId: string): Promise<TireWearLog[]> {
     const list = await this.loadTWL();
+    return list.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async addTireRotationLog(log: TireRotationLog): Promise<void> {
+    const list = await this.loadTRL();
+    const idx = list.findIndex((x) => x.id === log.id);
+    if (idx >= 0) list[idx] = log; else list.unshift(log);
+    await this.saveTRL(list);
+  }
+  async listTireRotationLogs(vehicleId: string): Promise<TireRotationLog[]> {
+    const list = await this.loadTRL();
+    return list.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async addTireReplacementLog(log: TireReplacementLog): Promise<void> {
+    const list = await this.loadTRPL();
+    const idx = list.findIndex((x) => x.id === log.id);
+    if (idx >= 0) list[idx] = log; else list.unshift(log);
+    await this.saveTRPL(list);
+  }
+  async listTireReplacementLogs(vehicleId: string): Promise<TireReplacementLog[]> {
+    const list = await this.loadTRPL();
     return list.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
   }
 }
