@@ -35,13 +35,18 @@ export default function TireWearHistoryScreen({ route }: Props) {
     RR: 'Tras. Der.',
   };
 
+  const PosHeader = ({ label }: { label: string }) => (
+    <Text style={[styles.cell, styles.headerCell]}>
+      <Text style={styles.headerPosStrong}>{label}</Text>
+    </Text>
+  );
   const renderHeader = () => (
     <View style={[styles.row, styles.headerRow]}>
       <Text style={[styles.cell, styles.headerCell, { flex: 1.4 }]}>Fecha</Text>
-      <Text style={[styles.cell, styles.headerCell]}>{POS_LABEL.FL}</Text>
-      <Text style={[styles.cell, styles.headerCell]}>{POS_LABEL.FR}</Text>
-      <Text style={[styles.cell, styles.headerCell]}>{POS_LABEL.RL}</Text>
-      <Text style={[styles.cell, styles.headerCell]}>{POS_LABEL.RR}</Text>
+      <PosHeader label={POS_LABEL.FL} />
+      <PosHeader label={POS_LABEL.FR} />
+      <PosHeader label={POS_LABEL.RL} />
+      <PosHeader label={POS_LABEL.RR} />
     </View>
   );
 
@@ -93,5 +98,6 @@ const styles = StyleSheet.create({
   altRow: { backgroundColor: '#0B1020' },
   cell: { flex: 1, color: '#E5E7EB' },
   headerCell: { color: '#9CA3AF', fontWeight: '600' },
+  headerPosStrong: { color: '#E5E7EB', fontWeight: '700' },
   empty: { color: '#6B7280', padding: 12 },
 });

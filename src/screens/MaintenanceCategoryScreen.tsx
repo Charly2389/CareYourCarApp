@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image, ScrollView, Linking } from 'react-native';
 import { addInbox } from '../services/inbox';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -10,10 +10,10 @@ import type { TirePressureLog, TireRotationLog, TireReplacementLog } from '../mo
 type Props = NativeStackScreenProps<RootStackParamList, 'MaintenanceCategory'>;
 
 const NEUMATICOS_ITEMS = [
-  'Comprobacion Presion',
-  'Comprobacion Neumaticos',
-  'Cruce Neumaticos',
-  'Sustitucion Neumaticos',
+  'Comprobación de presión',
+  'Comprobación de neumáticos',
+  'Cruce de neumáticos',
+  'Sustitución de neumáticos',
 ];
 
 export default function MaintenanceCategoryScreen({ route, navigation }: Props) {
@@ -99,7 +99,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         </View>
       );
     }
-    if (sub === 'Sustitucion Neumaticos') {
+    if (sub === 'Sustitución de neumáticos' || (sub && sub.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() === 'sustitucion de neumaticos')) {
       return (
         <View style={{ marginTop: 12 }}>
           <Text style={styles.sub}>Registra la sustitución de neumáticos y el tipo montado.</Text>
@@ -166,7 +166,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         </View>
       );
     }
-    if (sub === 'Cruce Neumaticos') {
+    if (sub === 'Cruce de neumáticos' || (sub && sub.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() === 'cruce de neumaticos')) {
       return (
         <View style={{ marginTop: 12 }}>
           <Text style={styles.sub}>Registra el cruce de neumáticos para llevar control del mantenimiento.</Text>
@@ -214,7 +214,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         </View>
       );
     }
-    if (sub === 'Sustitucion Neumaticos') {
+    if (sub === 'Sustitución de neumáticos') {
       return (
         <View style={{ marginTop: 12 }}>
           <Text style={styles.sub}>Registra la sustitución de neumáticos y el tipo montado.</Text>
@@ -282,7 +282,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         </View>
       );
     }
-    if (sub === 'Cruce Neumaticos') {
+    if (sub === 'Cruce de neumáticos') {
       return (
         <View style={{ marginTop: 12 }}>
           <Text style={styles.sub}>Registra el cruce de neumáticos para llevar control del mantenimiento.</Text>
@@ -330,7 +330,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         </View>
       );
     }
-    if (sub === 'Comprobacion Neumaticos') {
+    if (sub === 'Comprobación de neumáticos' || (sub && sub.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() === 'comprobacion de neumaticos')) {
       return (
         <View style={{ marginTop: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -339,10 +339,10 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
               accessibilityRole='button'
               onPress={() => Linking.openURL('https://www.youtube.com/watch?v=GhbPKjN6J5s&t')}
             >
-            <Text style={{ color: '#60A5FA', fontWeight: '600' }}>Cómo comprobar tus nemáticos correctamente.</Text>
+            <Text style={{ color: '#60A5FA', fontWeight: '600' }}>Cómo comprobar tus neumáticos correctamente.</Text>
           </TouchableOpacity>
           </View>
-          <Text style={styles.sub}>La profundidad minima legal del dibujo es 1,6 mm.</Text>
+          <Text style={styles.sub}>La profundidad mínima legal del dibujo es 1,6 mm.</Text>
           <View style={styles.carCanvas} onLayout={(e) => setCanvas({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
             <Image source={require('../../assets/car_top.png')} resizeMode="contain" style={styles.carImage} />
             {(['FL','FR','RL','RR'] as const).map((w) => (
@@ -422,7 +422,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
               onPress={() => navigation.navigate('TireWearHistory', { vehicleId })}
               style={[styles.backBtn, { backgroundColor: '#111827' }]}
             >
-              <Text style={styles.backText}>Consultar histÃ³rico</Text>
+              <Text style={styles.backText}>Consultar histórico</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={() => setSub(null)} style={[styles.backBtn, { alignSelf: 'flex-start', marginTop: 12 }]}>
@@ -431,7 +431,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         </View>
       );
     }
-    if (sub === 'Comprobacion Presion') {
+    if (sub === 'Comprobación de presión' || (sub && sub.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() === 'comprobacion de presion')) {
       return (
         <View style={{ marginTop: 12 }}>
           <Text style={styles.sub}>Pulsa sobre la presiÃ³n recomendada para editarla</Text>
@@ -509,7 +509,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
               onPress={() => navigation.navigate('TirePressureHistory', { vehicleId })}
               style={[styles.backBtn, { backgroundColor: '#111827' }]}
             >
-              <Text style={styles.backText}>Consultar histÃ³rico</Text>
+              <Text style={styles.backText}>Consultar histórico</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={() => setSub(null)} style={[styles.backBtn, { alignSelf: 'flex-start', marginTop: 12 }]}>

@@ -9,19 +9,19 @@ type Leaf = { label: string };
 type Node = { label: string; children?: Leaf[] };
 
 const MENU: Node[] = [
-  { label: 'Neumaticos', children: [
-    { label: 'Comprobacion Presion' },
-    { label: 'Comprobacion Neumaticos' },
-    { label: 'Cruce Neumaticos' },
-    { label: 'Sustitucion Neumaticos' },
+  { label: 'Neumáticos', children: [
+    { label: 'Comprobación de presión' },
+    { label: 'Comprobación de neumáticos' },
+    { label: 'Cruce de neumáticos' },
+    { label: 'Sustitución de neumáticos' },
   ]},
   { label: 'Filtros' },
   { label: 'Aceite' },
   { label: 'Frenos' },
-  { label: 'Liquidos' },
-  { label: 'Bateria' },
-  { label: 'Correa/Cadena distribucion' },
-  { label: 'Suspension' },
+  { label: 'Líquidos' },
+  { label: 'Batería' },
+  { label: 'Correa/Cadena de distribución' },
+  { label: 'Suspensión' },
   { label: 'Otros' },
 ];
 

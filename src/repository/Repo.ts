@@ -1,10 +1,28 @@
 import { MaintenanceRecord, Vehicle, TirePressureLog, TireWearLog, TireRotationLog, TireReplacementLog } from '../models';
-// Use legacy API for broader compatibility and simpler types
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import * as SQLite from 'expo-sqlite/legacy';
+// Expo SDK 53+: use top-level expo-sqlite import
+import * as SQLite from 'expo-sqlite';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+
+// Ensure we always store a full ISO datetime string.
+// - If input already includes time (contains 'T'), return as-is.
+// - If input is a date-only (YYYY-MM-DD), attach current time-of-day.
+// - If input is missing/invalid, use current datetime.
+const ensureISODateTime = (input?: string): string => {
+  try {
+    const now = new Date();
+    if (input && /\d{4}-\d{2}-\d{2}T/.test(input)) return input;
+    if (input && /^\d{4}-\d{2}-\d{2}$/.test(input)) {
+      const [y, m, d] = input.split('-').map((x) => Number(x));
+      // Compose an ISO string using provided date and current time (UTC components)
+      const dt = new Date(Date.UTC(y, (m as number) - 1, d as number, now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds()));
+      return dt.toISOString();
+    }
+    return now.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+};
 
 export interface Repo {
   // Vehicles
@@ -64,35 +82,40 @@ export class InMemoryRepo implements Repo {
       .sort((a, b) => b.date.localeCompare(a.date));
   }
   async upsertMaintenance(r: MaintenanceRecord): Promise<void> {
-    this.maintenance.set(r.id, r);
+    const rec: MaintenanceRecord = { ...r, date: ensureISODateTime(r.date) };
+    this.maintenance.set(rec.id, rec);
   }
   async deleteMaintenance(id: string): Promise<void> {
     this.maintenance.delete(id);
   }
   async addTirePressureLog(log: TirePressureLog): Promise<void> {
-    const idx = this.pressureLogs.findIndex((x) => x.id === log.id);
-    if (idx >= 0) this.pressureLogs[idx] = log; else this.pressureLogs.push(log);
+    const L: TirePressureLog = { ...log, date: ensureISODateTime(log.date) };
+    const idx = this.pressureLogs.findIndex((x) => x.id === L.id);
+    if (idx >= 0) this.pressureLogs[idx] = L; else this.pressureLogs.push(L);
   }
   async listTirePressureLogs(vehicleId: string): Promise<TirePressureLog[]> {
     return this.pressureLogs.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
   }
   async addTireWearLog(log: TireWearLog): Promise<void> {
-    const idx = this.wearLogs.findIndex((x) => x.id === log.id);
-    if (idx >= 0) this.wearLogs[idx] = log; else this.wearLogs.push(log);
+    const L: TireWearLog = { ...log, date: ensureISODateTime(log.date) };
+    const idx = this.wearLogs.findIndex((x) => x.id === L.id);
+    if (idx >= 0) this.wearLogs[idx] = L; else this.wearLogs.push(L);
   }
   async listTireWearLogs(vehicleId: string): Promise<TireWearLog[]> {
     return this.wearLogs.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
   }
   async addTireRotationLog(log: TireRotationLog): Promise<void> {
-    const idx = this.rotationLogs.findIndex((x) => x.id === log.id);
-    if (idx >= 0) this.rotationLogs[idx] = log; else this.rotationLogs.push(log);
+    const L: TireRotationLog = { ...log, date: ensureISODateTime(log.date) };
+    const idx = this.rotationLogs.findIndex((x) => x.id === L.id);
+    if (idx >= 0) this.rotationLogs[idx] = L; else this.rotationLogs.push(L);
   }
   async listTireRotationLogs(vehicleId: string): Promise<TireRotationLog[]> {
     return this.rotationLogs.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
   }
   async addTireReplacementLog(log: TireReplacementLog): Promise<void> {
-    const idx = this.replacementLogs.findIndex((x) => x.id === log.id);
-    if (idx >= 0) this.replacementLogs[idx] = log; else this.replacementLogs.push(log);
+    const L: TireReplacementLog = { ...log, date: ensureISODateTime(log.date) };
+    const idx = this.replacementLogs.findIndex((x) => x.id === L.id);
+    if (idx >= 0) this.replacementLogs[idx] = L; else this.replacementLogs.push(L);
   }
   async listTireReplacementLogs(vehicleId: string): Promise<TireReplacementLog[]> {
     return this.replacementLogs.filter((l) => l.vehicleId === vehicleId).sort((a, b) => b.date.localeCompare(a.date));
@@ -105,10 +128,8 @@ class SQLiteRepo implements Repo {
   private initialized = false;
 
   constructor() {
-    // Expo classic API
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - typings differ across versions but openDatabase exists
-    this.db = SQLite.openDatabase('careyourcar.db');
+    // Expo SDK 53 sqlite
+    this.db = (SQLite as any).openDatabaseSync ? (SQLite as any).openDatabaseSync('careyourcar.db') : (SQLite as any).openDatabase('careyourcar.db');
   }
 
   private async init(): Promise<void> {
@@ -182,6 +203,17 @@ class SQLiteRepo implements Repo {
       if (!hasTireSizeSpec) {
         await this.exec('ALTER TABLE vehicles ADD COLUMN tireSizeSpec TEXT');
       }
+    } catch { /* ignore */ }
+    // Normalize existing dates to include time
+    try {
+      // Prefer createdAt time when available (maintenance)
+      await this.exec("UPDATE maintenance SET date = createdAt WHERE instr(date,'T') = 0 AND createdAt IS NOT NULL AND instr(createdAt,'T') > 0");
+      // Fallback: attach midnight UTC when only date present
+      await this.exec("UPDATE maintenance SET date = substr(date,1,10) || 'T12:00:00.000Z' WHERE instr(date,'T') = 0 AND date IS NOT NULL AND length(date) >= 10");
+      await this.exec("UPDATE tire_pressure_logs SET date = substr(date,1,10) || 'T12:00:00.000Z' WHERE instr(date,'T') = 0 AND date IS NOT NULL AND length(date) >= 10");
+      await this.exec("UPDATE tire_wear_logs SET date = substr(date,1,10) || 'T12:00:00.000Z' WHERE instr(date,'T') = 0 AND date IS NOT NULL AND length(date) >= 10");
+      await this.exec("UPDATE tire_rotation_logs SET date = substr(date,1,10) || 'T12:00:00.000Z' WHERE instr(date,'T') = 0 AND date IS NOT NULL AND length(date) >= 10");
+      await this.exec("UPDATE tire_replacement_logs SET date = substr(date,1,10) || 'T12:00:00.000Z' WHERE instr(date,'T') = 0 AND date IS NOT NULL AND length(date) >= 10");
     } catch { /* ignore */ }
     this.initialized = true;
   }
@@ -265,21 +297,22 @@ class SQLiteRepo implements Repo {
   }
   async upsertMaintenance(r: MaintenanceRecord): Promise<void> {
     await this.init();
+    const rec: MaintenanceRecord = { ...r, date: ensureISODateTime(r.date) };
     await this.exec(
       `INSERT OR REPLACE INTO maintenance (id, vehicleId, type, date, mileageAtService, cost, notes, workshop, nextDueDate, nextDueMileage, createdAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        r.id,
-        r.vehicleId,
-        r.type,
-        r.date,
-        r.mileageAtService,
-        r.cost ?? null,
-        r.notes ?? null,
-        r.workshop ?? null,
-        r.nextDueDate ?? null,
-        r.nextDueMileage ?? null,
-        r.createdAt,
+        rec.id,
+        rec.vehicleId,
+        rec.type,
+        rec.date,
+        rec.mileageAtService,
+        rec.cost ?? null,
+        rec.notes ?? null,
+        rec.workshop ?? null,
+        rec.nextDueDate ?? null,
+        rec.nextDueMileage ?? null,
+        rec.createdAt,
       ]
     );
   }
@@ -289,10 +322,11 @@ class SQLiteRepo implements Repo {
   }
   async addTirePressureLog(log: TirePressureLog): Promise<void> {
     await this.init();
+    const L: TirePressureLog = { ...log, date: ensureISODateTime(log.date) };
     await this.exec(
       `INSERT OR REPLACE INTO tire_pressure_logs (id, vehicleId, date, fl, fr, rl, rr)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [log.id, log.vehicleId, log.date, log.fl ?? null, log.fr ?? null, log.rl ?? null, log.rr ?? null]
+      [L.id, L.vehicleId, L.date, L.fl ?? null, L.fr ?? null, L.rl ?? null, L.rr ?? null]
     );
   }
   async listTirePressureLogs(vehicleId: string): Promise<TirePressureLog[]> {
@@ -304,10 +338,11 @@ class SQLiteRepo implements Repo {
   }
   async addTireWearLog(log: TireWearLog): Promise<void> {
     await this.init();
+    const L: TireWearLog = { ...log, date: ensureISODateTime(log.date) };
     await this.exec(
       `INSERT OR REPLACE INTO tire_wear_logs (id, vehicleId, date, fl, fr, rl, rr)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [log.id, log.vehicleId, log.date, log.fl ?? null, log.fr ?? null, log.rl ?? null, log.rr ?? null]
+      [L.id, L.vehicleId, L.date, L.fl ?? null, L.fr ?? null, L.rl ?? null, L.rr ?? null]
     );
   }
   async listTireWearLogs(vehicleId: string): Promise<TireWearLog[]> {
@@ -319,10 +354,11 @@ class SQLiteRepo implements Repo {
   }
   async addTireRotationLog(log: TireRotationLog): Promise<void> {
     await this.init();
+    const L: TireRotationLog = { ...log, date: ensureISODateTime(log.date) };
     await this.exec(
       `INSERT OR REPLACE INTO tire_rotation_logs (id, vehicleId, date, mileage)
        VALUES (?, ?, ?, ?)`,
-      [log.id, log.vehicleId, log.date, log.mileage]
+      [L.id, L.vehicleId, L.date, L.mileage]
     );
   }
   async listTireRotationLogs(vehicleId: string): Promise<TireRotationLog[]> {
@@ -334,10 +370,11 @@ class SQLiteRepo implements Repo {
   }
   async addTireReplacementLog(log: TireReplacementLog): Promise<void> {
     await this.init();
+    const L: TireReplacementLog = { ...log, date: ensureISODateTime(log.date) };
     await this.exec(
       `INSERT OR REPLACE INTO tire_replacement_logs (id, vehicleId, date, mileage, tireType)
        VALUES (?, ?, ?, ?, ?)`,
-      [log.id, log.vehicleId, log.date, log.mileage, log.tireType ?? null]
+      [L.id, L.vehicleId, L.date, L.mileage, L.tireType ?? null]
     );
   }
   async listTireReplacementLogs(vehicleId: string): Promise<TireReplacementLog[]> {
@@ -372,7 +409,18 @@ class AsyncStorageRepo implements Repo {
   private async loadMaintenance(): Promise<MaintenanceRecord[]> {
     try {
       const raw = await AsyncStorage.getItem(this.MKEY);
-      return raw ? (JSON.parse(raw) as MaintenanceRecord[]) : [];
+      const list: MaintenanceRecord[] = raw ? (JSON.parse(raw) as MaintenanceRecord[]) : [];
+      let changed = false;
+      const fixed = list.map((r) => {
+        const hasT = r?.date && r.date.includes('T');
+        if (hasT) return r;
+        const useCreated = r?.createdAt && r.createdAt.includes('T');
+        const newDate = useCreated ? r.createdAt : (r?.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? `${r.date}T12:00:00.000Z` : ensureISODateTime(r?.date));
+        if (newDate !== r.date) { changed = true; return { ...r, date: newDate }; }
+        return r;
+      });
+      if (changed) { try { await AsyncStorage.setItem(this.MKEY, JSON.stringify(fixed)); } catch {} }
+      return fixed;
     } catch {
       return [];
     }
@@ -383,7 +431,16 @@ class AsyncStorageRepo implements Repo {
   private async loadTPL(): Promise<TirePressureLog[]> {
     try {
       const raw = await AsyncStorage.getItem(this.TPLKEY);
-      return raw ? (JSON.parse(raw) as TirePressureLog[]) : [];
+      const list: TirePressureLog[] = raw ? (JSON.parse(raw) as TirePressureLog[]) : [];
+      let changed = false;
+      const fixed = list.map((l) => {
+        if (l?.date && l.date.includes('T')) return l;
+        const nd = l?.date && /^\d{4}-\d{2}-\d{2}$/.test(l.date) ? `${l.date}T12:00:00.000Z` : ensureISODateTime(l?.date);
+        if (nd !== l.date) { changed = true; return { ...l, date: nd }; }
+        return l;
+      });
+      if (changed) { try { await AsyncStorage.setItem(this.TPLKEY, JSON.stringify(fixed)); } catch {} }
+      return fixed;
     } catch {
       return [];
     }
@@ -394,7 +451,16 @@ class AsyncStorageRepo implements Repo {
   private async loadTWL(): Promise<TireWearLog[]> {
     try {
       const raw = await AsyncStorage.getItem(this.TWLKEY);
-      return raw ? (JSON.parse(raw) as TireWearLog[]) : [];
+      const list: TireWearLog[] = raw ? (JSON.parse(raw) as TireWearLog[]) : [];
+      let changed = false;
+      const fixed = list.map((l) => {
+        if (l?.date && l.date.includes('T')) return l;
+        const nd = l?.date && /^\d{4}-\d{2}-\d{2}$/.test(l.date) ? `${l.date}T12:00:00.000Z` : ensureISODateTime(l?.date);
+        if (nd !== l.date) { changed = true; return { ...l, date: nd }; }
+        return l;
+      });
+      if (changed) { try { await AsyncStorage.setItem(this.TWLKEY, JSON.stringify(fixed)); } catch {} }
+      return fixed;
     } catch {
       return [];
     }
@@ -405,7 +471,16 @@ class AsyncStorageRepo implements Repo {
   private async loadTRL(): Promise<TireRotationLog[]> {
     try {
       const raw = await AsyncStorage.getItem(this.TRLKEY);
-      return raw ? (JSON.parse(raw) as TireRotationLog[]) : [];
+      const list: TireRotationLog[] = raw ? (JSON.parse(raw) as TireRotationLog[]) : [];
+      let changed = false;
+      const fixed = list.map((l) => {
+        if (l?.date && l.date.includes('T')) return l;
+        const nd = l?.date && /^\d{4}-\d{2}-\d{2}$/.test(l.date) ? `${l.date}T12:00:00.000Z` : ensureISODateTime(l?.date);
+        if (nd !== l.date) { changed = true; return { ...l, date: nd }; }
+        return l;
+      });
+      if (changed) { try { await AsyncStorage.setItem(this.TRLKEY, JSON.stringify(fixed)); } catch {} }
+      return fixed;
     } catch {
       return [];
     }
@@ -416,7 +491,16 @@ class AsyncStorageRepo implements Repo {
   private async loadTRPL(): Promise<TireReplacementLog[]> {
     try {
       const raw = await AsyncStorage.getItem(this.TRPLKEY);
-      return raw ? (JSON.parse(raw) as TireReplacementLog[]) : [];
+      const list: TireReplacementLog[] = raw ? (JSON.parse(raw) as TireReplacementLog[]) : [];
+      let changed = false;
+      const fixed = list.map((l) => {
+        if (l?.date && l.date.includes('T')) return l;
+        const nd = l?.date && /^\d{4}-\d{2}-\d{2}$/.test(l.date) ? `${l.date}T12:00:00.000Z` : ensureISODateTime(l?.date);
+        if (nd !== l.date) { changed = true; return { ...l, date: nd }; }
+        return l;
+      });
+      if (changed) { try { await AsyncStorage.setItem(this.TRPLKEY, JSON.stringify(fixed)); } catch {} }
+      return fixed;
     } catch {
       return [];
     }
@@ -451,8 +535,9 @@ class AsyncStorageRepo implements Repo {
   }
   async upsertMaintenance(r: MaintenanceRecord): Promise<void> {
     const list = await this.loadMaintenance();
-    const idx = list.findIndex((x) => x.id === r.id);
-    if (idx >= 0) list[idx] = r; else list.push(r);
+    const rec: MaintenanceRecord = { ...r, date: ensureISODateTime(r.date) };
+    const idx = list.findIndex((x) => x.id === rec.id);
+    if (idx >= 0) list[idx] = rec; else list.push(rec);
     await this.saveMaintenance(list);
   }
   async deleteMaintenance(id: string): Promise<void> {
@@ -461,8 +546,9 @@ class AsyncStorageRepo implements Repo {
   }
   async addTirePressureLog(log: TirePressureLog): Promise<void> {
     const list = await this.loadTPL();
-    const idx = list.findIndex((x) => x.id === log.id);
-    if (idx >= 0) list[idx] = log; else list.unshift(log);
+    const L: TirePressureLog = { ...log, date: ensureISODateTime(log.date) };
+    const idx = list.findIndex((x) => x.id === L.id);
+    if (idx >= 0) list[idx] = L; else list.unshift(L);
     await this.saveTPL(list);
   }
   async listTirePressureLogs(vehicleId: string): Promise<TirePressureLog[]> {
@@ -471,8 +557,9 @@ class AsyncStorageRepo implements Repo {
   }
   async addTireWearLog(log: TireWearLog): Promise<void> {
     const list = await this.loadTWL();
-    const idx = list.findIndex((x) => x.id === log.id);
-    if (idx >= 0) list[idx] = log; else list.unshift(log);
+    const L: TireWearLog = { ...log, date: ensureISODateTime(log.date) };
+    const idx = list.findIndex((x) => x.id === L.id);
+    if (idx >= 0) list[idx] = L; else list.unshift(L);
     await this.saveTWL(list);
   }
   async listTireWearLogs(vehicleId: string): Promise<TireWearLog[]> {
@@ -481,8 +568,9 @@ class AsyncStorageRepo implements Repo {
   }
   async addTireRotationLog(log: TireRotationLog): Promise<void> {
     const list = await this.loadTRL();
-    const idx = list.findIndex((x) => x.id === log.id);
-    if (idx >= 0) list[idx] = log; else list.unshift(log);
+    const L: TireRotationLog = { ...log, date: ensureISODateTime(log.date) };
+    const idx = list.findIndex((x) => x.id === L.id);
+    if (idx >= 0) list[idx] = L; else list.unshift(L);
     await this.saveTRL(list);
   }
   async listTireRotationLogs(vehicleId: string): Promise<TireRotationLog[]> {
@@ -491,8 +579,9 @@ class AsyncStorageRepo implements Repo {
   }
   async addTireReplacementLog(log: TireReplacementLog): Promise<void> {
     const list = await this.loadTRPL();
-    const idx = list.findIndex((x) => x.id === log.id);
-    if (idx >= 0) list[idx] = log; else list.unshift(log);
+    const L: TireReplacementLog = { ...log, date: ensureISODateTime(log.date) };
+    const idx = list.findIndex((x) => x.id === L.id);
+    if (idx >= 0) list[idx] = L; else list.unshift(L);
     await this.saveTRPL(list);
   }
   async listTireReplacementLogs(vehicleId: string): Promise<TireReplacementLog[]> {

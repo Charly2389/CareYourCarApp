@@ -64,6 +64,8 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 1000,
     alignItems: 'center',
+    // Ensure touches pass through outside the banner box
+    pointerEvents: 'box-none',
   },
   banner: {
     width: '96%',
@@ -76,6 +78,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    // Banner itself remains interactive
+    pointerEvents: 'auto',
   },
   title: { color: '#E5E7EB', fontWeight: '700' },
   body: { color: '#D1D5DB', marginTop: 2 },

@@ -40,10 +40,10 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
       setVehicle(v!);
       const typeLabel: Record<string, string> = {
         aceite: 'Aceite',
-        neumaticos: 'Neumáticos',
+        Neumáticos: 'Neumáticos',
         filtro_aire: 'Filtro de aire',
-        filtro_habitaculo: 'Filtro de habitáculo',
-        correa_distribucion: 'Correa distribución',
+        filtro_habitáculo: 'Filtro de habitáculo',
+        correa_distribucion: 'Correa de distribución',
         frenos: 'Frenos',
         bateria: 'Batería',
         itv: 'ITV',
@@ -66,7 +66,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         date: r.date,
         mileageAtService: r.mileage ?? 0,
         createdAt: r.date,
-        notes: r.tireType ? `Sustitución: ${r.tireType}` : 'Sustitución de neumáticos',
+        notes: r.tireType ? `Sustitución: ${r.tireType}` : 'Sustitución de Neumáticos',
       } as MaintenanceRecord));
       const combined = [...m, ...rotAsMaint, ...replAsMaint].sort((a, b) => b.date.localeCompare(a.date));
       setMaintenance(combined);
@@ -92,39 +92,45 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         id: `repl-${r.id}`,
         date: r.date,
         category: 'Neumáticos',
-        subcategory: 'Sustitución de neumáticos',
+        subcategory: 'Sustitución de Neumáticos',
         mileage: r.mileage,
         extra: r.tireType,
       }));
+      const POS_LABEL: Record<'FL'|'FR'|'RL'|'RR', string> = {
+        FL: 'Del. Izq.',
+        FR: 'Del. Der.',
+        RL: 'Tras. Izq.',
+        RR: 'Tras. Der.',
+      };
       const pressureEvents: MaintEvent[] = (tpl as any[]).map((r) => {
         const fmt = (n?: number) => (typeof n === 'number' && isFinite(n) ? n.toFixed(1) : undefined);
         const parts = [
-          fmt(r.fl) ? `FL ${fmt(r.fl)} bar` : null,
-          fmt(r.fr) ? `FR ${fmt(r.fr)} bar` : null,
-          fmt(r.rl) ? `RL ${fmt(r.rl)} bar` : null,
-          fmt(r.rr) ? `RR ${fmt(r.rr)} bar` : null,
+          fmt(r.fl) ? `${POS_LABEL.FL} ${fmt(r.fl)} bar` : null,
+          fmt(r.fr) ? `${POS_LABEL.FR} ${fmt(r.fr)} bar` : null,
+          fmt(r.rl) ? `${POS_LABEL.RL} ${fmt(r.rl)} bar` : null,
+          fmt(r.rr) ? `${POS_LABEL.RR} ${fmt(r.rr)} bar` : null,
         ].filter(Boolean);
         return {
           id: `press-${r.id}`,
           date: r.date,
           category: 'Neumáticos',
-          subcategory: 'Presión de neumáticos',
+          subcategory: 'Presión de Neumáticos',
           extra: (parts as string[]).join(', '),
         } as MaintEvent;
       });
       const wearEvents: MaintEvent[] = (twl as any[]).map((r) => {
         const fmt = (n?: number) => (typeof n === 'number' && isFinite(n) ? n.toFixed(1) : undefined);
         const parts = [
-          fmt(r.fl) ? `FL ${fmt(r.fl)} mm` : null,
-          fmt(r.fr) ? `FR ${fmt(r.fr)} mm` : null,
-          fmt(r.rl) ? `RL ${fmt(r.rl)} mm` : null,
-          fmt(r.rr) ? `RR ${fmt(r.rr)} mm` : null,
+          fmt(r.fl) ? `${POS_LABEL.FL} ${fmt(r.fl)} mm` : null,
+          fmt(r.fr) ? `${POS_LABEL.FR} ${fmt(r.fr)} mm` : null,
+          fmt(r.rl) ? `${POS_LABEL.RL} ${fmt(r.rl)} mm` : null,
+          fmt(r.rr) ? `${POS_LABEL.RR} ${fmt(r.rr)} mm` : null,
         ].filter(Boolean);
         return {
           id: `wear-${r.id}`,
           date: r.date,
           category: 'Neumáticos',
-          subcategory: 'Desgaste de neumáticos',
+          subcategory: 'Desgaste de Neumáticos',
           extra: (parts as string[]).join(', '),
         } as MaintEvent;
       });
@@ -231,12 +237,34 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
             renderItem={({ item }) => (
               <View style={styles.row}>
                 <Text style={styles.rowTitle}>{item.category + (item.subcategory ? (' - ' + item.subcategory) : '')}</Text>
-                <Text style={styles.rowSub}>{new Date(item.date).toLocaleDateString()} {item.mileage != null ? (' - ' + item.mileage.toLocaleString() + ' km') : ''}</Text>
-                {item.extra ? <Text style={styles.rowSub}>{item.extra}</Text> : null}
+                <Text style={styles.rowSub}>{new Date(item.date).toLocaleString()} {item.mileage != null ? (' - ' + item.mileage.toLocaleString() + ' km') : ''}</Text>
+                {item.extra ? (
+                  item.category.toLowerCase().includes('neum') ? (
+                    <Text style={styles.rowSub}>
+                      {item.extra.split(',').map((seg, idx, arr) => {
+                        const part = seg.trim();
+                        // Capture full label (e.g., "Del. Der." or "Tras. Izq.") before the first number
+                        const m = part.match(/^(.+?)\s+(\d.*)$/);
+                        const label = m ? m[1].trim() : '';
+                        const rest = m ? m[2].trim() : part;
+                        return (
+                          <Text key={idx}>
+                            {label ? (<Text style={styles.posStrong}>{label}</Text>) : null}
+                            {label ? ' ' : ''}
+                            {rest}
+                            {idx < arr.length - 1 ? ', ' : ''}
+                          </Text>
+                        );
+                      })}
+                    </Text>
+                  ) : (
+                    <Text style={styles.rowSub}>{item.extra}</Text>
+                  )
+                ) : null}
                 {typeof item.cost === 'number' ? <Text style={styles.rowCost}>{item.cost.toFixed(2)} EUR</Text> : null}
               </View>
             )}
-            contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
           />
         </>
       )}
@@ -267,6 +295,7 @@ const styles = StyleSheet.create({
   row: { backgroundColor: '#0B1020', borderRadius: 10, borderWidth: 1, borderColor: '#1F2937', padding: 12, marginBottom: 10 },
   rowTitle: { color: '#E5E7EB', fontWeight: '600' },
   rowSub: { color: '#9CA3AF', marginTop: 4 },
+  posStrong: { color: '#E5E7EB', fontWeight: '700' },
   rowCost: { color: '#A7F3D0', marginTop: 4 },
   segment: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   segmentItem: { flex: 1, paddingVertical: 10, backgroundColor: '#0B1020', borderRadius: 10, borderWidth: 1, borderColor: '#1F2937', alignItems: 'center' },

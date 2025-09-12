@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { addInbox } from '../../services/inbox';
 import { repo } from '../../repository/Repo';
@@ -87,6 +88,8 @@ export async function checkKmReminderOnAppOpen(): Promise<void> {
 
 async function ensurePermissions(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
+  // Skip permission flow in Expo Go (store client) as push APIs are limited
+  if (Constants.executionEnvironment === 'storeClient') return false;
   const settings = await Notifications.getPermissionsAsync();
   if (settings.status !== 'granted') {
     const req = await Notifications.requestPermissionsAsync();

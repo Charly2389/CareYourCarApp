@@ -2,6 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { enableScreens } from 'react-native-screens';
+
+// Optimize navigation and native screens before navigator creation
+enableScreens(true);
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Text, TouchableOpacity } from 'react-native';
 import VehicleListScreen from './src/screens/VehicleListScreen';
@@ -58,6 +63,7 @@ export default function App() {
   if (!loaded) return null;
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <NavigationContainer>
         <Banner />
@@ -72,19 +78,19 @@ export default function App() {
         >
           <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Vehicles" component={VehicleListScreen} options={({ navigation }) => ({
-            title: 'Mis Coches',
+            title: 'Mis coches',
             headerRight: () => (
               <TouchableOpacity onPress={() => navigation.navigate('Options')}>
                 <Text style={{ color: '#60A5FA', fontWeight: '600' }}>Opciones</Text>
               </TouchableOpacity>
             ),
           })} />
-          <Stack.Screen name="AddVehicle" component={AddEditVehicleScreen} options={{ title: 'Añadir/Editar Coche' }} />
+          <Stack.Screen name="AddVehicle" component={AddEditVehicleScreen} options={{ title: 'Añadir/Editar coche' }} />
           <Stack.Screen
             name="VehicleDetail"
             component={VehicleDetailScreen}
             options={({ navigation, route }) => ({
-              title: 'Detalle del Coche',
+              title: 'Detalle del coche',
               headerRight: () => (
                 <TouchableOpacity onPress={() => navigation.navigate('MaintenancePlan', { vehicleId: (route as any).params.vehicleId })}>
                   <Text style={{ color: '#60A5FA', fontWeight: '600' }}>Plan de mantenimiento</Text>
@@ -92,18 +98,19 @@ export default function App() {
               ),
             })}
           />
-          <Stack.Screen name="AddMaintenance" component={AddEditMaintenanceScreen} options={{ title: 'Añadir Mantenimiento' }} />
+          <Stack.Screen name="AddMaintenance" component={AddEditMaintenanceScreen} options={{ title: 'Añadir mantenimiento' }} />
           <Stack.Screen name="MaintenancePlan" component={MaintenancePlanScreen} options={{ title: 'Plan de mantenimiento' }} />
           <Stack.Screen name="Options" component={OptionsScreen} options={{ title: 'Opciones' }} />
           <Stack.Screen name="UpdateMileage" component={UpdateMileageScreen} options={{ title: 'Actualizar km' }} />
           <Stack.Screen name="MaintenanceCategory" component={MaintenanceCategoryScreen} options={{ title: 'Mantenimiento' }} />
-          <Stack.Screen name="TirePressureHistory" component={TirePressureHistoryScreen} options={{ title: 'Histórico presiones' }} />
-          <Stack.Screen name="TireWearHistory" component={TireWearHistoryScreen} options={{ title: 'Historico desgaste' }} />
-          <Stack.Screen name="TireRotationHistory" component={TireRotationHistoryScreen} options={{ title: 'Histórico cruce neumáticos' }} />
-          <Stack.Screen name="TireReplacementHistory" component={TireReplacementHistoryScreen} options={{ title: 'Histórico sustitución neumáticos' }} />
+          <Stack.Screen name="TirePressureHistory" component={TirePressureHistoryScreen} options={{ title: 'Histórico de presiones' }} />
+          <Stack.Screen name="TireWearHistory" component={TireWearHistoryScreen} options={{ title: 'Histórico de desgaste' }} />
+          <Stack.Screen name="TireRotationHistory" component={TireRotationHistoryScreen} options={{ title: 'Histórico de cruces de neumáticos' }} />
+          <Stack.Screen name="TireReplacementHistory" component={TireReplacementHistoryScreen} options={{ title: 'Histórico de sustitución de neumáticos' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
