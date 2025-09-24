@@ -26,6 +26,8 @@ export type MaintenanceType =
   | 'neumaticos'
   | 'filtro_aire'
   | 'filtro_habitaculo'
+  | 'filtro_aceite'
+  | 'filtro_combustible'
   | 'correa_distribucion'
   | 'frenos'
   | 'bateria'

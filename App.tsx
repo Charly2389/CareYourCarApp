@@ -26,6 +26,7 @@ import TirePressureHistoryScreen from './src/screens/TirePressureHistoryScreen';
 import TireWearHistoryScreen from './src/screens/TireWearHistoryScreen';
 import TireRotationHistoryScreen from './src/screens/TireRotationHistoryScreen';
 import TireReplacementHistoryScreen from './src/screens/TireReplacementHistoryScreen';
+import FilterHistoryScreen from './src/screens/FilterHistoryScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -41,6 +42,7 @@ export type RootStackParamList = {
   TireWearHistory: { vehicleId: string };
   TireRotationHistory: { vehicleId: string };
   TireReplacementHistory: { vehicleId: string };
+  FilterHistory: { vehicleId: string; type: MaintenanceType; title: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -85,7 +87,7 @@ export default function App() {
               </TouchableOpacity>
             ),
           })} />
-          <Stack.Screen name="AddVehicle" component={AddEditVehicleScreen} options={{ title: 'A帽adir/Editar coche' }} />
+          <Stack.Screen name="AddVehicle" component={AddEditVehicleScreen} options={{ title: 'A馻dir/Editar coche' }} />
           <Stack.Screen
             name="VehicleDetail"
             component={VehicleDetailScreen}
@@ -107,10 +109,12 @@ export default function App() {
           <Stack.Screen name="TireWearHistory" component={TireWearHistoryScreen} options={{ title: 'Hist贸rico de desgaste' }} />
           <Stack.Screen name="TireRotationHistory" component={TireRotationHistoryScreen} options={{ title: 'Hist贸rico de cruces de neum谩ticos' }} />
           <Stack.Screen name="TireReplacementHistory" component={TireReplacementHistoryScreen} options={{ title: 'Hist贸rico de sustituci贸n de neum谩ticos' }} />
+          <Stack.Screen name="FilterHistory" component={FilterHistoryScreen} options={({ route }) => ({ title: route.params.title })} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
 

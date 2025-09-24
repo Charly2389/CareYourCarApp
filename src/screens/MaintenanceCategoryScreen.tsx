@@ -5,7 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { repo } from '../repository/Repo';
 import { uuid } from '../utils/uuid';
-import type { TirePressureLog, TireRotationLog, TireReplacementLog } from '../models';
+import type { TirePressureLog, TireRotationLog, TireReplacementLog, MaintenanceRecord } from '../models';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MaintenanceCategory'>;
 
@@ -14,6 +14,14 @@ const NEUMATICOS_ITEMS = [
   'Comprobación de neumáticos',
   'Cruce de neumáticos',
   'Sustitución de neumáticos',
+];
+
+// Submenús para la categoría Filtros
+const FILTROS_ITEMS = [
+  'Filtro del habitáculo',
+  'Filtro de Aire',
+  'Filtro de Aceite',
+  'Filtro de combustible',
 ];
 
 export default function MaintenanceCategoryScreen({ route, navigation }: Props) {
@@ -33,7 +41,14 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
   const [rotationKm, setRotationKm] = React.useState<string>('');
   const [replacementKm, setReplacementKm] = React.useState<string>('');
   const [tireType, setTireType] = React.useState<string>('');
+  // Filtros form
+  const [filterKm, setFilterKm] = React.useState<string>('');
+  const [filterNotes, setFilterNotes] = React.useState<string>('');
 
+  const [filterCost, setFilterCost] = React.useState<string>('');
+  const [filterWorkshop, setFilterWorkshop] = React.useState<string>('');
+  const [filterNextDate, setFilterNextDate] = React.useState<string>('');
+  const [filterNextKm, setFilterNextKm] = React.useState<string>('');
   React.useEffect(() => {
     (async () => {
       try {
@@ -99,7 +114,7 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         </View>
       );
     }
-    if (sub === 'Sustitución de neumáticos' || (sub && sub.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() === 'sustitucion de neumaticos')) {
+    if (sub === 'Sustitución de neumáticos' || (sub && sub.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() === 'sustituci�n de neumaticos')) {
       return (
         <View style={{ marginTop: 12 }}>
           <Text style={styles.sub}>Registra la sustitución de neumáticos y el tipo montado.</Text>
@@ -518,17 +533,152 @@ export default function MaintenanceCategoryScreen({ route, navigation }: Props) 
         </View>
       );
     }
-    return <Text style={styles.selHint}>PrÃ³ximamente: {sub}</Text>;
-  };
-
-  return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>AtrÃ¡s</Text>
+  const renderFiltros = () => {
+    if (!sub) {
+      return (
+        <View>
+          {FILTROS_ITEMS.map((name) => (
+            <TouchableOpacity key={name} style={styles.itemRow} onPress={() => { setSub(name); setFilterKm(''); setFilterNotes(''); setFilterCost(''); setFilterWorkshop(''); setFilterNextDate(''); setFilterNextKm(''); }}>
+              <Text style={styles.itemText}>{name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    }
+    const norm = (sub || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    const toType = () => {
+      if (norm.includes('habitac')) return 'filtro_habitaculo' as const;
+      if (norm.includes('aire')) return 'filtro_aire' as const;
+      if (norm.includes('aceite')) return 'filtro_aceite' as const;
+      if (norm.includes('combust')) return 'filtro_combustible' as const;
+      return 'otros' as const;
+    };
+    const type = toType();
+    const histTitle = `Hist�rico � ${sub}`;
+    return (
+      <View style={{ marginTop: 12 }}>
+        <Text style={styles.sub}>Registra la sustituci�n del {sub.toLowerCase()}.</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+          <Text style={[styles.sub, { marginRight: 8 }]}>Kil�metros actuales</Text>
+          <TextInput
+            value={filterKm}
+            onChangeText={setFilterKm}
+            keyboardType='numeric'
+            style={[styles.editInputSmall, { minWidth: 96 }]}
+            placeholder='Ej: 68500'
+            placeholderTextColor="#6B7280"
+          />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+          <Text style={[styles.sub, { marginRight: 8 }]}>Notas (opcional)</Text>
+          <TextInput
+            value={filterNotes}
+            onChangeText={setFilterNotes}
+            keyboardType='default'
+            style={[styles.editInputSmall, { minWidth: 200 }]}
+            placeholder='Marca, referencia, etc.'
+            placeholderTextColor="#6B7280"
+          />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+          <Text style={[styles.sub, { marginRight: 8 }]}>Coste (EUR)</Text>
+          <TextInput
+            value={filterCost}
+            onChangeText={setFilterCost}
+            keyboardType='numeric'
+            style={[styles.editInputSmall, { minWidth: 96 }]}
+            placeholder='Ej: 45'
+            placeholderTextColor="#6B7280"
+          />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+          <Text style={[styles.sub, { marginRight: 8 }]}>Taller</Text>
+          <TextInput
+            value={filterWorkshop}
+            onChangeText={setFilterWorkshop}
+            keyboardType='default'
+            style={[styles.editInputSmall, { minWidth: 160 }]}
+            placeholder='Nombre del taller'
+            placeholderTextColor="#6B7280"
+          />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+          <Text style={[styles.sub, { marginRight: 8 }]}>Pr�xima fecha</Text>
+          <TextInput
+            value={filterNextDate}
+            onChangeText={setFilterNextDate}
+            keyboardType='default'
+            style={[styles.editInputSmall, { minWidth: 120 }]}
+            placeholder='YYYY-MM-DD'
+            placeholderTextColor="#6B7280"
+          />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+          <Text style={[styles.sub, { marginRight: 8 }]}>Pr�ximo km</Text>
+          <TextInput
+            value={filterNextKm}
+            onChangeText={setFilterNextKm}
+            keyboardType='numeric'
+            style={[styles.editInputSmall, { minWidth: 96 }]}
+            placeholder='Ej: 80000'
+            placeholderTextColor="#6B7280"
+          />
+        </View>
+        <View style={{ flexDirection: 'row', marginTop: 12 }}>
+          <TouchableOpacity
+            accessibilityRole='button'
+            onPress={async () => {
+              const km = Number(filterKm.replace(/[^0-9.]/g, ''));
+              if (!isFinite(km)) return;
+              const now = new Date().toISOString();
+              const costVal = Number((filterCost || '').replace(',', '.').replace(/[^0-9.]/g, ''));
+              const nextKmVal = Number((filterNextKm || '').replace(/[^0-9.]/g, ''));
+              const nextDateStr = (filterNextDate || '').trim() || undefined;
+              const rec: MaintenanceRecord = {
+                id: uuid(),
+                vehicleId,
+                type: type as any,
+                date: now,
+                mileageAtService: Math.round(km),
+                notes: filterNotes?.trim() || undefined,
+                cost: isFinite(costVal) ? Number(costVal.toFixed(2)) : undefined,
+                workshop: filterWorkshop?.trim() || undefined,
+                nextDueDate: nextDateStr,
+                nextDueMileage: isFinite(nextKmVal) ? Math.round(nextKmVal) : undefined,
+                createdAt: now,
+              };
+              try { await repo.upsertMaintenance(rec); } catch {}
+              setFilterKm(''); setFilterNotes(''); setFilterCost(''); setFilterWorkshop(''); setFilterNextDate(''); setFilterNextKm('');
+            }}
+            style={[styles.backBtn, { backgroundColor: '#10B98122', borderColor: '#10B98155', marginRight: 12 }]}
+          >
+            <Text style={[styles.backText, { color: '#A7F3D0' }]}>Registrar sustituci�n</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole='button'
+            onPress={() => navigation.navigate('FilterHistory', { vehicleId, type: type as any, title: histTitle })}
+            style={[styles.backBtn, { backgroundColor: '#111827' }]}
+          >
+            <Text style={styles.backText}>Consultar Hist�rico</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={() => setSub(null)} style={[styles.backBtn, { alignSelf: 'flex-start', marginTop: 12 }]}>
+          <Text style={styles.backText}>Atr�s</Text>
         </TouchableOpacity>
+      </View>
+    );
+  };
         <Text style={styles.header}>{category}</Text>
-        {category.toLowerCase().includes('neumatic') ? renderNeumaticos() : (
+        {category
+          .normalize('NFD')
+          .replace(/\p{Diacritic}/gu, '')
+          .toLowerCase()
+          .includes('neumatic') ? renderNeumaticos() :
+          category
+            .normalize('NFD')
+            .replace(/\p{Diacritic}/gu, '')
+            .toLowerCase()
+            .includes('filtro') ? renderFiltros() : (
           <Text style={styles.selHint}>Selecciona una opciÃ³n (pendiente de implementar)</Text>
         )}
       </ScrollView>
@@ -556,3 +706,5 @@ const styles = StyleSheet.create({
   measureBadge: { position: 'absolute', flexDirection: 'row', alignItems: 'center', backgroundColor: '#111827', borderColor: '#1F2937', borderWidth: 1, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, elevation: 3 },
   wheelHotspotWarn: { backgroundColor: '#DC262633', borderColor: '#F87171' },
 });
+
+

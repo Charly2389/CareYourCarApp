@@ -48,6 +48,8 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         bateria: 'Batería',
         itv: 'ITV',
         otros: 'Otros',
+        filtro_aceite: 'Filtro de aceite',
+        filtro_combustible: 'Filtro de combustible',
       };
       // Combine maintenance records with tyre events as synthetic records for the list
       const rotAsMaint = rot.map((r: any) => ({
